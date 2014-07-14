@@ -229,6 +229,8 @@ public:
     QString studyInstanceUID;
     QString seriesInstanceUID;
 
+    DcmDataset* filmBoxDataset;
+
     // Printer AETITLE. Must have a section in the settings file.
     //
     QString printer;

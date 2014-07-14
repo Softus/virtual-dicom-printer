@@ -39,6 +39,7 @@ PrintSCP::PrintSCP(QObject *parent)
     : QObject(parent)
     , blockMode(DIMSE_BLOCKING)
     , timeout(0)
+    , filmBoxDataset(nullptr)
     , assoc(nullptr)
     , upstream(nullptr)
     , ignoreUpstreamErrors(false)
@@ -826,6 +827,8 @@ void PrintSCP::filmBoxNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDa
       ditem->putAndInsertString(DCM_ReferencedSOPInstanceUID, dcmGenerateUniqueIdentifier(uid, SITE_INSTANCE_UID_ROOT));
       dseq->insert(ditem);
       rspDataset->insert(dseq);
+
+      filmBoxDataset = (DcmDataset*)rqDataset->clone();
   }
   else
   {
@@ -854,6 +857,8 @@ void PrintSCP::filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp)
 
 void PrintSCP::filmBoxNDelete(T_DIMSE_Message&, T_DIMSE_Message&)
 {
+    delete filmBoxDataset;
+    filmBoxDataset = nullptr;
 }
 
 void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Message&, DcmDataset *&)
@@ -877,6 +882,17 @@ void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Mes
         }
         rqDataset->remove(DCM_BasicGrayscaleImageSequence);
         delete item;
+    }
+
+    DcmObject* obj = nullptr;
+    while (obj = filmBoxDataset->nextInContainer(obj), obj != nullptr)
+    {
+        if (obj->getVR() == EVR_SQ)
+        {
+            // Ignore ReferencedFilmSessionSequence
+            continue;
+        }
+        rqDataset->insert(dynamic_cast<DcmElement*>(obj->clone()));
     }
 
     rqDataset->putAndInsertString(DCM_SpecificCharacterSet, "ISO_IR 192"); // UTF-8
