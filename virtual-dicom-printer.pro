@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT          += core
+QT          += core network
 QT          -= gui
 LIBS        += -ldcmpstat -ldcmnet -ldcmdata -ldcmimgle -loflog -lofstd -lz -ltesseract
 unix:LIBS   += -lwrap -lssl
@@ -18,9 +18,11 @@ CONFIG   -= app_bundle
 TEMPLATE = app
 SOURCES += main.cpp \
     printscp.cpp \
-    storescp.cpp
+    storescp.cpp \
+    transcyrillic.cpp
 
 HEADERS += \
     printscp.h \
     product.h \
-    storescp.h
+    storescp.h \
+    transcyrillic.h

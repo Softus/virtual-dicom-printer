@@ -211,7 +211,7 @@ public:
      *  @param di image from dataset, may not be NULL
      *  @param settings to read attributes from
      */
-    void insertTags(DcmDataset *rqDataset, DicomImage* di, QSettings &settings);
+    void insertTags(DcmDataset *rqDataset, QUrl *url, DicomImage *di, QSettings &settings);
 
     /* class data */
 

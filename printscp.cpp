@@ -18,13 +18,20 @@
 #include "printscp.h"
 #include "storescp.h"
 
+#include "transcyrillic.h"
+
 #include <QCoreApplication>
 #include <QDate>
 #include <QDebug>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
 #include <QRect>
 #include <QRegExp>
 #include <QSettings>
 #include <QStringList>
+#include <QUrl>
+#include <QXmlStreamReader>
 
 #include <locale.h> // Required for tesseract
 
@@ -166,9 +173,9 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation()
     {
         // Initialize connection to upstream printer
 
-        settings.beginGroup("upstream");
-        auto printerAetitle  = settings.value("aetitle").toString();
-        auto printerAddress  = settings.value("address").toString();
+        settings.beginGroup(printer);
+        auto printerAetitle  = settings.value("upstream-aetitle").toString();
+        auto printerAddress  = settings.value("upstream-address").toString();
         ignoreUpstreamErrors = settings.value("ignore-errors").toBool();
         settings.endGroup();
 
@@ -913,6 +920,8 @@ void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Mes
     rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME);
 
     QSettings settings;
+    QUrl url;
+    QString userName, password;
     DicomImage di(rqDataset, rqDataset->getOriginalXfer());
     void *data;
     if (di.createJavaAWTBitmap(data, 0, 32) && data)
@@ -921,20 +930,95 @@ void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Mes
 
         // Global tags
         //
-        insertTags(rqDataset, &di, settings);
+        insertTags(rqDataset, url.isEmpty()? nullptr: &url, &di, settings);
+        url = settings.value("query-url", url).toUrl();
+        userName = settings.value("username", userName).toString();
+        password = settings.value("password", password).toString();
 
         // This printer tags
         //
         settings.beginGroup(printer);
-        insertTags(rqDataset, &di, settings);
+        insertTags(rqDataset, url.isEmpty()? nullptr: &url, &di, settings);
+        url = settings.value("query-url", url).toUrl();
+        userName = settings.value("username", userName).toString();
+        password = settings.value("password", password).toString();
         settings.endGroup();
         delete[] (Uint32*)data;
+    }
 
-#if 0
-        DcmFileFormat ff(rqDataset);
-        cond = ff.saveFile("database/rq.dcm", EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
-        qDebug() << cond.text();
-#endif
+    if (!url.isEmpty())
+    {
+        bool error = false;
+        url.addQueryItem("studyInstanceUID", instanceUID);
+        url.addQueryItem("examinationDate", QDate::currentDate().toString("yyyy-MM-dd"));
+        QNetworkRequest rq(url);
+        if (!userName.isEmpty())
+        {
+            rq.setRawHeader("Authorization", "Basic " + QByteArray(userName.append(':').append(password).toUtf8()).toBase64());
+        }
+
+        QNetworkAccessManager mgr;
+        auto reply = mgr.get(rq);
+        while (reply->isRunning())
+        {
+            qApp->processEvents(QEventLoop::AllEvents, 1000);
+        }
+
+        if (reply->error())
+        {
+            qDebug() << "Error loading " << url << reply->errorString() << reply->error();
+            ++error;
+        }
+        else
+        {
+            auto response = reply->readAll();
+            if (settings.value("debug").toBool())
+            {
+                qDebug() << QString::fromUtf8(response);
+            }
+
+            QXmlStreamReader xml(response);
+            while (xml.readNextStartElement())
+            {
+                if (xml.name() == "element")
+                {
+                    DcmTag tag;
+                    auto key = xml.attributes().value("tag");
+                    if (DcmTag::findTagFromName(key.toUtf8(), tag).bad())
+                    {
+                        qDebug() << "Unknown DCM tag" << key;
+                    }
+                    else
+                    {
+                        auto str = translateToLatin(xml.readElementText());
+                        qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
+                        rqDataset->putAndInsertString(tag, str.toUtf8());
+                    }
+                }
+                else if (xml.name() == "data-set")
+                {
+                    continue;
+                }
+                else
+                {
+                    qDebug() << "Unexpected element" << xml.name();
+                    ++error;
+                }
+            }
+
+            if (xml.hasError())
+            {
+                qDebug() << "XML parse error" << xml.errorString();
+                ++error;
+            }
+        }
+
+        if (error)
+        {
+            // In case of eny error set PatientId to '0'
+            //
+            rqDataset->putAndInsertString(DCM_PatientID, "0");
+        }
     }
 
     foreach (auto server, settings.value("storage-servers").toStringList())
@@ -942,9 +1026,16 @@ void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Mes
         StoreSCP sscp(server);
         sscp.sendToServer(rqDataset, instanceUID);
     }
+
+    if (settings.value("debug").toBool())
+    {
+        DcmFileFormat ff(rqDataset);
+        cond = ff.saveFile("rq.dcm", EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
+        qDebug() << cond.text();
+    }
 }
 
-void PrintSCP::insertTags(DcmDataset *rqDataset, DicomImage* di, QSettings& settings)
+void PrintSCP::insertTags(DcmDataset *rqDataset, QUrl *url, DicomImage *di, QSettings& settings)
 {
     auto tagCount = settings.beginReadArray("tag");
     for (int i = 0; i < tagCount; ++i)
@@ -994,8 +1085,16 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, DicomImage* di, QSettings& sett
         }
         else
         {
-            qDebug() << key << str;
+            qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
             rqDataset->putAndInsertString(tag, str.toUtf8());
+            if (url)
+            {
+                auto param = settings.value("query-parameter").toString();
+                if (!param.isEmpty())
+                {
+                    url->addQueryItem(param, str);
+                }
+            }
         }
     }
     settings.endArray();
