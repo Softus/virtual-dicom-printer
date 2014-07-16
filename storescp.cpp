@@ -61,10 +61,10 @@ T_ASC_Parameters* StoreSCP::initAssocParams(const QString& peerAet, const QStrin
     auto cond = ASC_initializeNetwork(NET_REQUESTOR, settings.value("store-port").toInt(), timeout, &net);
     if (cond.good())
     {
-        cond = ASC_createAssociationParameters(&params, settings.value("pdu-size", ASC_DEFAULTMAXPDU).toInt());
+        cond = ASC_createAssociationParameters(&params, settings.value("store-pdu-size", ASC_DEFAULTMAXPDU).toInt());
         if (cond.good())
         {
-            auto appAet = settings.value("aetitle", qApp->applicationName()).toString().toUpper().toUtf8();
+            auto appAet = settings.value("store-aetitle", qApp->applicationName()).toString().toUpper().toUtf8();
             ASC_setAPTitles(params, appAet, peerAet.toUtf8(), nullptr);
 
             /* Figure out the presentation addresses and copy the */
