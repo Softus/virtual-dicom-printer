@@ -49,17 +49,13 @@ public:
      *  @return result indicating whether association negotiation was successful,
      *    unsuccessful or whether termination of the server was requested.
      */
-    DVPSAssociationNegotiationResult negotiateAssociation();
+    DVPSAssociationNegotiationResult negotiateAssociation(T_ASC_Network *upstreamNet);
 
     /** confirms an association negotiated with negotiateAssociation() and handles
      *  all DIMSE communication for the Print SCP. Returns after the association
      *  has been released or aborted.
      */
     void handleClient();
-
-    OFCondition initNetwork();
-
-    bool associationWaiting();
 
   private:
 
@@ -237,7 +233,7 @@ public:
 
     // the DICOM network and listen port
     //
-    T_ASC_Network *net;
+    T_ASC_Network *upstreamNet;
 
     // the network association over which the print SCP is operating
     //

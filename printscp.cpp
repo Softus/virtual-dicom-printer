@@ -63,28 +63,10 @@ PrintSCP::PrintSCP(QObject *parent)
 PrintSCP::~PrintSCP()
 {
     dropAssociations();
-    ASC_dropNetwork(&net);
+    ASC_dropNetwork(&upstreamNet);
 }
 
-OFCondition PrintSCP::initNetwork()
-{
-    QSettings settings;
-    auto listenPort  = settings.value("port", DEFAULT_LISTEN_PORT).toInt();
-    auto cond = ASC_initializeNetwork(NET_ACCEPTORREQUESTOR, listenPort, timeout, &net);
-    return cond;
-}
-
-bool PrintSCP::associationWaiting()
-{
-#ifdef HAVE_FORK
-    int timeout=1;
-#else
-    int timeout=1000;
-#endif
-    return ASC_associationWaiting(net, timeout);
-}
-
-DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation()
+DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *net)
 {
     QSettings settings;
     DVPSAssociationNegotiationResult result = DVPSJ_success;
@@ -187,6 +169,9 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation()
             DIC_NODENAME localHost;
             T_ASC_Parameters* params = nullptr;
 
+            auto port  = settings.value("print-port", 0).toInt();
+            auto cond = ASC_initializeNetwork(NET_REQUESTOR, port, timeout, &upstreamNet);
+
             qDebug() << "Creating upstream connection to" << printer;
 
             cond = ASC_createAssociationParameters(&params, settings.value("pdu-size", ASC_DEFAULTMAXPDU).toInt());
@@ -212,7 +197,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation()
 
             if (cond.good())
             {
-                cond = ASC_requestAssociation(net, params, &upstream);
+                cond = ASC_requestAssociation(upstreamNet, params, &upstream);
             }
 
             if (cond.bad())
@@ -260,6 +245,7 @@ void PrintSCP::dropAssociations()
         qDebug() << "Upstream connection closed";
         ASC_dropSCPAssociation(upstream);
         ASC_destroyAssociation(&upstream);
+        ASC_dropNetwork(&upstreamNet);
     }
 }
 

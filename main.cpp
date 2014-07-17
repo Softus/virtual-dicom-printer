@@ -59,26 +59,38 @@ static void cleanChildren()
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
+    QSettings settings;
     app.setApplicationName(PRODUCT_SHORT_NAME);
     app.setOrganizationName(ORGANIZATION_DOMAIN);
 
-    PrintSCP printSCP;
-
-    OFCondition cond = printSCP.initNetwork();
+    auto port = settings.value("port", DEFAULT_LISTEN_PORT).toInt();
+    auto tout = settings.value("timeout", DEFAULT_TIMEOUT).toInt();
+    T_ASC_Network *net;
+    OFCondition cond = ASC_initializeNetwork(NET_ACCEPTOR, port, tout, &net);
     if (cond.bad())
     {
         qDebug() << "cannot initialise network" << cond.text();
         return 1;
     }
 
+#if defined(HAVE_SETUID) && defined(HAVE_GETUID)
+    /* return to normal uid so that we can't do too much damage in case
+     * things go very wrong.   Only relevant if the program is setuid root,
+     * and run by another user.  Running as root user may be
+     * potentially disasterous if this program screws up badly.
+     */
+    setuid(getuid());
+#endif
+
     Q_FOREVER
     {
+        PrintSCP printSCP;
         do
         {
            cleanChildren();
-        } while (!printSCP.associationWaiting());
+        } while (!ASC_associationWaiting(net, tout));
 
-        auto ass = printSCP.negotiateAssociation();
+        auto ass = printSCP.negotiateAssociation(net);
 
         if (DVPSJ_error == ass)
         {
@@ -86,6 +98,7 @@ int main(int argc, char *argv[])
         }
         else if (DVPSJ_terminate == ass)
         {
+            ASC_dropNetwork(&net);
             break;
         }
         else if (DVPSJ_success == ass)
