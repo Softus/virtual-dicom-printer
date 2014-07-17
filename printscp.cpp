@@ -124,10 +124,9 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation()
     {
         printer = assoc->params->DULparams.calledAPTitle;
 
-        qDebug() << "Association Received ("
+        qDebug() << "Client association received from "
            << assoc->params->DULparams.callingPresentationAddress
-           << ":" << assoc->params->DULparams.callingAPTitle << "->"
-           << printer << ") ";
+           << ":" << assoc->params->DULparams.callingAPTitle << "=>" << printer;
 
         ASC_setAPTitles(assoc->params, nullptr, nullptr, printer.toUtf8());
 
@@ -179,10 +178,16 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation()
         ignoreUpstreamErrors = settings.value("ignore-errors").toBool();
         settings.endGroup();
 
-        if (!printerAetitle.isEmpty())
+        if (printerAetitle.isEmpty())
+        {
+            qDebug() << "No upstream connection for" << printer;
+        }
+        else
         {
             DIC_NODENAME localHost;
             T_ASC_Parameters* params = nullptr;
+
+            qDebug() << "Creating upstream connection to" << printer;
 
             cond = ASC_createAssociationParameters(&params, settings.value("pdu-size", ASC_DEFAULTMAXPDU).toInt());
             if (cond.good())
@@ -219,7 +224,8 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation()
             {
                 // Dump general information concerning the establishment of the network connection if required
                 //
-                qDebug() << "DcmAssoc to" << printerAetitle << "accepted (max send PDV: " << upstream->sendPDVLength << ")";
+                qDebug() << "Connection to upstream printer" << printerAetitle
+                         << "accepted (max send PDV: " << upstream->sendPDVLength << ")";
             }
         }
     }
@@ -233,7 +239,7 @@ OFCondition PrintSCP::refuseAssociation(T_ASC_RejectParametersResult result, T_A
     qDebug() << __FUNCTION__ << result << reason;
     T_ASC_RejectParameters rej = { result, ASC_SOURCE_SERVICEUSER, reason};
 
-    void *associatePDU=nullptr;
+    void *associatePDU = nullptr;
     unsigned long associatePDUlength=0;
     OFCondition cond = ASC_rejectAssociation(assoc, &rej, &associatePDU, &associatePDUlength);
     delete[] (char *)associatePDU;
@@ -244,12 +250,14 @@ void PrintSCP::dropAssociations()
 {
     if (assoc)
     {
+        qDebug() << "Client connection closed";
         ASC_dropSCPAssociation(assoc);
         ASC_destroyAssociation(&assoc);
     }
 
     if (upstream)
     {
+        qDebug() << "Upstream connection closed";
         ASC_dropSCPAssociation(upstream);
         ASC_destroyAssociation(&upstream);
     }
