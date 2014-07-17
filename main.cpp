@@ -62,9 +62,16 @@ int main(int argc, char *argv[])
     app.setOrganizationName(ORGANIZATION_DOMAIN);
 
     QSettings settings;
+    auto logLevel = settings.value("log-level").toString();
+    if (!logLevel.isEmpty())
+    {
+        auto level = log4cplus::getLogLevelManager().fromString(logLevel.toUtf8().constData());
+        log4cplus::Logger::getRoot().setLogLevel(level);
+    }
     if (settings.value("debug").toBool())
     {
-        log4cplus::Logger::getRoot().setLogLevel(log4cplus::TRACE_LOG_LEVEL);
+        log4cplus::Logger log = log4cplus::Logger::getInstance("dcmtk.dcmpstat.dump");
+        log.setLogLevel(OFLogger::DEBUG_LOG_LEVEL);
     }
 
     auto port = settings.value("port", DEFAULT_LISTEN_PORT).toInt();

@@ -42,6 +42,19 @@
 #include <dcmtk/dcmpstat/dvpsdef.h>     /* for constants */
 #include <dcmtk/dcmimgle/dcmimage.h>    /* for DicomImage */
 
+static void DumpIn(T_DIMSE_Message &msg, DcmItem *dataset)
+{
+    OFString str;
+    DIMSE_dumpMessage(str, msg, DIMSE_INCOMING, dataset);
+}
+
+static void DumpOut(T_DIMSE_Message &msg, DcmItem *dataset)
+{
+    OFString str;
+    DIMSE_dumpMessage(str, msg, DIMSE_OUTGOING, dataset);
+    qDebug() << str.c_str();
+}
+
 PrintSCP::PrintSCP(QObject *parent)
     : QObject(parent)
     , blockMode(DIMSE_BLOCKING)
@@ -355,47 +368,54 @@ OFCondition PrintSCP::handleNGet(T_DIMSE_Message& rq, T_ASC_PresentationContextI
     rsp.msg.NGetRSP.opts = 0;
 
     OFCondition cond = EC_Normal;
+    DcmDataset *rqDataset = nullptr;
     DcmDataset *rspDataset = nullptr;
     DcmDataset *rspCommand = nullptr;
-    DcmDataset *dataset = nullptr;
 
     if (rq.msg.NGetRQ.DataSetType == DIMSE_DATASET_PRESENT)
     {
         // should not happen
-        cond = DIMSE_receiveDataSetInMemory(assoc, blockMode, timeout, &presID, &dataset, nullptr, nullptr);
+        cond = DIMSE_receiveDataSetInMemory(assoc, blockMode, timeout, &presID, &rqDataset, nullptr, nullptr);
     }
 
     if (cond.good() && upstream)
     {
         T_ASC_PresentationContextID upstreamPresId = 0;
-        cond = DIMSE_sendMessageUsingMemoryData(upstream, presID, &rq, nullptr, dataset, nullptr, nullptr, &rspCommand);
+        cond = DIMSE_sendMessageUsingMemoryData(upstream, presID, &rq, nullptr, rqDataset, nullptr, nullptr, &rspCommand);
         if (cond.bad()) qDebug() << "DIMSE_send(upstream, N-Get) failed" << cond.text();
         delete rspCommand;
-        delete dataset;
+        DumpOut(rq, rqDataset);
+        delete rqDataset;
+        rqDataset = nullptr;
 
-        cond = DIMSE_receiveCommand(upstream, blockMode, timeout, &upstreamPresId, &rsp, &dataset, &rspCommand);
+        cond = DIMSE_receiveCommand(upstream, blockMode, timeout, &upstreamPresId, &rsp, &rspDataset, &rspCommand);
         if (cond.bad()) qDebug() << "DIMSE_recv(upstream, N-Get) failed" << cond.text();
-        delete dataset;
-        dataset = nullptr;
         delete rspCommand;
+        DumpIn(rsp, rspDataset);
+        delete rspDataset;
+        rspDataset = nullptr;
 
         if (cond.good() && rsp.CommandField == DIMSE_N_GET_RSP)
         {
             if (rsp.msg.NGetRSP.DataSetType == DIMSE_DATASET_PRESENT)
             {
-                cond = DIMSE_receiveDataSetInMemory(upstream, blockMode, timeout, &upstreamPresId, &dataset, nullptr, nullptr);
+                cond = DIMSE_receiveDataSetInMemory(upstream, blockMode, timeout, &upstreamPresId, &rqDataset, nullptr, nullptr);
             }
             if (cond.good())
             {
-                cond = DIMSE_sendMessageUsingMemoryData(assoc, presID, &rsp, nullptr, dataset, nullptr, nullptr, &rspCommand);
+                cond = DIMSE_sendMessageUsingMemoryData(assoc, presID, &rsp, nullptr, rqDataset, nullptr, nullptr, &rspCommand);
+                DumpOut(rsp, rqDataset);
                 delete rspCommand;
             }
-            delete dataset;
+            delete rqDataset;
+            rqDataset = nullptr;
         }
 
         if (ignoreUpstreamErrors)
             cond = EC_Normal;
     }
+
+    delete rqDataset;
 
     if (cond.bad())
         return cond;
@@ -416,7 +436,9 @@ OFCondition PrintSCP::handleNGet(T_DIMSE_Message& rq, T_ASC_PresentationContextI
     {
         cond = DIMSE_sendMessageUsingMemoryData(assoc, presID, &rsp, nullptr, rspDataset, nullptr, nullptr, &rspCommand);
         delete rspCommand;
+        DumpOut(rsp, rspDataset);
     }
+
     delete rspDataset;
     return cond;
 }
@@ -849,7 +871,7 @@ void PrintSCP::filmBoxNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDa
   }
 }
 
-void PrintSCP::presentationLUTNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset)
+void PrintSCP::presentationLUTNCreate(DcmDataset *, T_DIMSE_Message&, DcmDataset *&)
 {
 }
 
