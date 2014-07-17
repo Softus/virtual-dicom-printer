@@ -59,10 +59,10 @@ static void cleanChildren()
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
-    QSettings settings;
     app.setApplicationName(PRODUCT_SHORT_NAME);
     app.setOrganizationName(ORGANIZATION_DOMAIN);
 
+    QSettings settings;
     auto port = settings.value("port", DEFAULT_LISTEN_PORT).toInt();
     auto tout = settings.value("timeout", DEFAULT_TIMEOUT).toInt();
     T_ASC_Network *net;
