@@ -62,6 +62,11 @@ int main(int argc, char *argv[])
     app.setOrganizationName(ORGANIZATION_DOMAIN);
 
     QSettings settings;
+    if (settings.value("debug").toBool())
+    {
+        log4cplus::Logger::getRoot().setLogLevel(log4cplus::TRACE_LOG_LEVEL);
+    }
+
     auto port = settings.value("port", DEFAULT_LISTEN_PORT).toInt();
     auto tout = settings.value("timeout", DEFAULT_TIMEOUT).toInt();
     T_ASC_Network *net;

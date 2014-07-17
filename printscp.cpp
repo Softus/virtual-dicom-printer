@@ -673,6 +673,11 @@ OFCondition PrintSCP::handleNCreate(T_DIMSE_Message& rq, T_ASC_PresentationConte
         // BFB N-CREATE
         filmBoxNCreate(rqDataset, rsp, rspDataset);
     }
+    else if (sopClass == UID_PresentationLUTSOPClass)
+    {
+        // P-LUT N-CREATE
+        presentationLUTNCreate(rqDataset, rsp, rspDataset);
+    }
     else
     {
         qDebug() << "N-CREATE unsupported for SOP class '" << sopClass << "'";
@@ -774,6 +779,11 @@ void PrintSCP::printerNGet(T_DIMSE_Message&, T_DIMSE_Message& rsp, DcmDataset *&
     rspDataset = new DcmDataset;
     rspDataset->putAndInsertString(DCM_PrinterStatus, DEFAULT_printerStatus);
     rspDataset->putAndInsertString(DCM_PrinterStatusInfo, DEFAULT_printerStatusInfo);
+    //rspDataset->putAndInsertString(DCM_PrinterName
+    //rspDataset->putAndInsertString(DCM_Manufacturer
+    //rspDataset->putAndInsertString(DCM_ManufacturerModelName
+    //rspDataset->putAndInsertString(DCM_DeviceSerialNumber
+    //rspDataset->putAndInsertString(DCM_SoftwareVersions
     rsp.msg.NSetRSP.DataSetType = DIMSE_DATASET_PRESENT;
 }
 
@@ -837,6 +847,10 @@ void PrintSCP::filmBoxNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDa
     rsp.msg.NCreateRSP.DimseStatus = STATUS_N_InvalidObjectInstance;
     rsp.msg.NCreateRSP.opts = 0;  // don't include affected SOP instance UID
   }
+}
+
+void PrintSCP::presentationLUTNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset)
+{
 }
 
 void PrintSCP::filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp)
