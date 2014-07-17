@@ -923,6 +923,8 @@ void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Mes
     auto now = QDateTime::currentDateTime();
     rqDataset->putAndInsertString(DCM_InstanceCreationDate, now.toString("yyyyMMdd").toUtf8());
     rqDataset->putAndInsertString(DCM_InstanceCreationTime, now.toString("HHmmss").toUtf8());
+    rqDataset->putAndInsertString(DCM_StudyDate, now.toString("yyyyMMdd").toUtf8());
+    rqDataset->putAndInsertString(DCM_StudyTime, now.toString("HHmmss").toUtf8());
 
     rqDataset->putAndInsertString(DCM_Manufacturer, ORGANIZATION_FULL_NAME);
     rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME);
