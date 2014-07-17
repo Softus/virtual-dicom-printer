@@ -189,7 +189,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
 
                 for (size_t i = 0; cond.good() && i < sizeof(abstractSyntaxes)/sizeof(abstractSyntaxes[0]); ++i)
                 {
-                    cond = ASC_addPresentationContext(params, 1, abstractSyntaxes[i],
+                    cond = ASC_addPresentationContext(params, i*2+1, abstractSyntaxes[i],
                         transferSyntaxes, sizeof(transferSyntaxes)/sizeof(transferSyntaxes[0]));
                 }
             }
