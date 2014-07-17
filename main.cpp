@@ -48,8 +48,7 @@ static void cleanChildren()
         {
             if (errno != ECHILD)
             {
-                char buf[256];
-                qDebug() << "wait for child failed: " << OFStandard::strerror(errno, buf, sizeof(buf));
+                qDebug() << "wait for child failed: " << errno;
             }
         }
     }
@@ -82,27 +81,44 @@ int main(int argc, char *argv[])
     setuid(getuid());
 #endif
 
+#ifdef HAVE_FORK
+    int listen_timeout=1;
+#else
+    int listen_timeout=1000;
+#endif
+
     Q_FOREVER
     {
+        // Use new print SCP object for each association
+        //
         PrintSCP printSCP;
+
         do
         {
            cleanChildren();
-        } while (!ASC_associationWaiting(net, tout));
+        } while (!ASC_associationWaiting(net, listen_timeout));
 
+        // Ready to accept an association
+        //
         auto ass = printSCP.negotiateAssociation(net);
 
         if (DVPSJ_error == ass)
         {
-            // association has already been deleted, we just wait for the next client to connect.
+            // Association has already been deleted,
+            // we just wait for the next client to connect.
         }
         else if (DVPSJ_terminate == ass)
         {
+            // Our mission is over
+            //
             ASC_dropNetwork(&net);
             break;
         }
         else if (DVPSJ_success == ass)
         {
+            // A new client just been connected.
+            // Do the real work.
+            //
             printSCP.handleClient();
         }
     }

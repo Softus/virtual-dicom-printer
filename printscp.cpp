@@ -80,6 +80,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
     {
         UID_VerificationSOPClass,
         UID_BasicGrayscalePrintManagementMetaSOPClass,
+        UID_PresentationLUTSOPClass,
         UID_PrivateShutdownSOPClass
     };
 
@@ -186,11 +187,9 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
                 gethostname(localHost, sizeof(localHost) - 1);
                 ASC_setPresentationAddresses(params, localHost, printerAddress.toUtf8());
 
-                cond = ASC_addPresentationContext(params, 1, abstractSyntaxes[0],
-                    transferSyntaxes, sizeof(transferSyntaxes)/sizeof(transferSyntaxes[0]));
-                if (cond.good())
+                for (size_t i = 0; cond.good() && i < sizeof(abstractSyntaxes)/sizeof(abstractSyntaxes[0]); ++i)
                 {
-                    cond = ASC_addPresentationContext(params, 3, abstractSyntaxes[1],
+                    cond = ASC_addPresentationContext(params, 1, abstractSyntaxes[i],
                         transferSyntaxes, sizeof(transferSyntaxes)/sizeof(transferSyntaxes[0]));
                 }
             }
