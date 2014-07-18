@@ -57,6 +57,10 @@ public:
      */
     void handleClient();
 
+    /** destroys the association managed by this object.
+     */
+    void dropAssociations();
+
   private:
 
     /// private undefined assignment operator
@@ -74,10 +78,6 @@ public:
      *  @return ASC_NORMAL if successful, an error code otherwise.
      */
     OFCondition refuseAssociation(T_ASC_RejectParametersResult result, T_ASC_RejectParametersReason reson);
-
-    /** destroys the association managed by this object.
-     */
-    void dropAssociations();
 
     /** handles any incoming N-GET-RQ message and sends back N-GET-RSP.
      *  @param rq request message

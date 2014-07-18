@@ -129,9 +129,20 @@ int main(int argc, char *argv[])
         else if (DVPSJ_success == ass)
         {
             // A new client just been connected.
-            // Do the real work.
             //
-            printSCP.handleClient();
+            auto pid = fork();
+            if (pid < 0)
+            {
+                qDebug() << "fork() failed, err" << errno;
+                printSCP.dropAssociations();
+            }
+            else if (pid == 0)
+            {
+                // Do the real work.
+                //
+                printSCP.handleClient();
+                break;
+            }
         }
     }
 
