@@ -71,7 +71,7 @@ static void copyItems(DcmItem* src, DcmItem *dst)
             // Ignore ReferencedFilmSessionSequence
             continue;
         }
-        dst->insert(dynamic_cast<DcmElement*>(obj->clone()));
+        dst->insert(dynamic_cast<DcmElement*>(obj->clone()), true);
     }
 }
 
@@ -80,6 +80,7 @@ PrintSCP::PrintSCP(QObject *parent)
     , blockMode(DIMSE_BLOCKING)
     , timeout(0)
     , sessionDataset(nullptr)
+    , webServiceCallPerformed(false)
     , assoc(nullptr)
     , upstream(nullptr)
     , ignoreUpstreamErrors(false)
@@ -284,6 +285,7 @@ void PrintSCP::dropAssociations()
 
     delete sessionDataset;
     sessionDataset = nullptr;
+    webServiceCallPerformed = false;
 }
 
 void PrintSCP::handleClient()
@@ -1022,8 +1024,6 @@ void PrintSCP::filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp)
 
 void PrintSCP::filmBoxNDelete(T_DIMSE_Message&, T_DIMSE_Message&)
 {
-    delete sessionDataset;
-    sessionDataset = nullptr;
 }
 
 void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Message&, DcmDataset *&)
@@ -1078,19 +1078,19 @@ void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Mes
 
         // Global tags
         //
-        insertTags(rqDataset, queryParams, &di, settings);
+        insertTags(queryParams, &di, settings);
 
         // This printer tags
         //
         settings.beginGroup(printer);
-        insertTags(rqDataset, queryParams, &di, settings);
+        insertTags(queryParams, &di, settings);
         settings.endGroup();
         delete[] (Uint32*)data;
     }
 
-    DcmElement *unused;
-    if (sessionDataset->findAndGetElement(DCM_PatientID, unused).bad())
+    if (!webServiceCallPerformed)
     {
+        webServiceCallPerformed = true;
         webQuery(queryParams);
     }
 
@@ -1219,7 +1219,7 @@ void PrintSCP::webQuery(const QMap<QString, QString>& queryParams)
     }
 }
 
-void PrintSCP::insertTags(DcmDataset *rqDataset, QMap<QString, QString>& queryParams, DicomImage *di, QSettings& settings)
+void PrintSCP::insertTags(QMap<QString, QString>& queryParams, DicomImage *di, QSettings& settings)
 {
     auto tagCount = settings.beginReadArray("tag");
     for (int i = 0; i < tagCount; ++i)
@@ -1275,7 +1275,7 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, QMap<QString, QString>& queryPa
                 queryParams[param] = str;
             }
             qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str << param;
-            rqDataset->putAndInsertString(tag, str.toUtf8());
+            sessionDataset->putAndInsertString(tag, str.toUtf8());
         }
     }
     settings.endArray();

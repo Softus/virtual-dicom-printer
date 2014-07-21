@@ -203,12 +203,11 @@ public:
      */
 
     /** Add attributes from the printer settings.
-     *  @param rqDataset request dataset, may not be NULL
      *  @param queryParams for the web service
      *  @param di image from dataset, may not be NULL
      *  @param settings to read attributes from
      */
-    void insertTags(DcmDataset *rqDataset, QMap<QString, QString> &queryParams, DicomImage *di, QSettings &settings);
+    void insertTags(QMap<QString, QString> &queryParams, DicomImage *di, QSettings &settings);
 
     /** Add attributes from the web service.
      *  @param queryParams for the web service
@@ -233,6 +232,7 @@ public:
     QString seriesInstanceUID;
 
     DcmDataset* sessionDataset;
+    bool        webServiceCallPerformed;
 
     // Printer AETITLE. Must have a section in the settings file.
     //

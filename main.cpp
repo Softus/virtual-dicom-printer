@@ -133,18 +133,25 @@ int main(int argc, char *argv[])
         {
             // A new client just been connected.
             //
-            auto pid = fork();
-            if (pid < 0)
+            if (debug)
             {
-                qDebug() << "fork() failed, err" << errno;
-                printSCP.dropAssociations();
-            }
-            else if (pid == 0)
-            {
-                // Do the real work.
-                //
                 printSCP.handleClient();
-                break;
+            }
+            else
+            {
+                auto pid = fork();
+                if (pid < 0)
+                {
+                    qDebug() << "fork() failed, err" << errno;
+                    printSCP.dropAssociations();
+                }
+                else if (pid == 0)
+                {
+                    // Do the real work.
+                    //
+                    printSCP.handleClient();
+                    break;
+                }
             }
         }
     }
