@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
         {
             // A new client just been connected.
             //
-            auto pid = debug? 0: fork();
+            auto pid = fork();
             if (pid < 0)
             {
                 qDebug() << "fork() failed, err" << errno;
