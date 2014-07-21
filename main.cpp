@@ -68,7 +68,9 @@ int main(int argc, char *argv[])
         auto level = log4cplus::getLogLevelManager().fromString(logLevel.toUtf8().constData());
         log4cplus::Logger::getRoot().setLogLevel(level);
     }
-    if (settings.value("debug").toBool())
+
+    auto debug = settings.value("debug").toBool();
+    if (debug)
     {
         log4cplus::Logger log = log4cplus::Logger::getInstance("dcmtk.dcmpstat.dump");
         log.setLogLevel(OFLogger::DEBUG_LOG_LEVEL);
@@ -108,7 +110,8 @@ int main(int argc, char *argv[])
         do
         {
            cleanChildren();
-        } while (!ASC_associationWaiting(net, listen_timeout));
+        }
+        while (!ASC_associationWaiting(net, listen_timeout));
 
         // Ready to accept an association
         //
@@ -130,7 +133,7 @@ int main(int argc, char *argv[])
         {
             // A new client just been connected.
             //
-            auto pid = fork();
+            auto pid = debug? 0: fork();
             if (pid < 0)
             {
                 qDebug() << "fork() failed, err" << errno;
