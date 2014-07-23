@@ -194,7 +194,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         settings.beginGroup(printer);
         auto printerAetitle  = settings.value("upstream-aetitle").toString();
         auto printerAddress  = settings.value("upstream-address").toString();
-        ignoreUpstreamErrors = settings.value("ignore-errors").toBool();
+        ignoreUpstreamErrors = settings.value("upstream-ignore-errors").toBool();
         settings.endGroup();
 
         if (printerAetitle.isEmpty())
