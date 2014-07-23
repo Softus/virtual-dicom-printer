@@ -112,10 +112,9 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
 
     const char *abstractSyntaxes[] =
     {
-        UID_VerificationSOPClass,
         UID_BasicGrayscalePrintManagementMetaSOPClass,
         UID_PresentationLUTSOPClass,
-        UID_PrivateShutdownSOPClass
+        UID_VerificationSOPClass,
     };
 
     const char* transferSyntaxes[] =
@@ -169,14 +168,6 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
             cond = ASC_acceptContextsWithPreferredTransferSyntaxes(assoc->params,
                 abstractSyntaxes, sizeof(abstractSyntaxes)/sizeof(abstractSyntaxes[0]),
                 transferSyntaxes, sizeof(transferSyntaxes)/sizeof(transferSyntaxes[0]));
-        }
-
-        /* check if we have negotiated the private "shutdown" SOP Class */
-        if (0 != ASC_findAcceptedPresentationContextID(assoc, UID_PrivateShutdownSOPClass))
-        {
-            cond = refuseAssociation(ASC_RESULT_REJECTEDPERMANENT, ASC_REASON_SU_NOREASON);
-            dropAssoc = OFTrue;
-            result = DVPSJ_terminate;
         }
     } /* receiveAssociation successful */
 
@@ -257,7 +248,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
 OFCondition PrintSCP::refuseAssociation(T_ASC_RejectParametersResult result, T_ASC_RejectParametersReason reason)
 {
     qDebug() << __FUNCTION__ << result << reason;
-    T_ASC_RejectParameters rej = { result, ASC_SOURCE_SERVICEUSER, reason};
+    T_ASC_RejectParameters rej = { result, ASC_SOURCE_SERVICEUSER, reason };
 
     void *associatePDU = nullptr;
     unsigned long associatePDUlength=0;
@@ -416,6 +407,7 @@ OFCondition PrintSCP::handleNGet(T_DIMSE_Message& rq, T_ASC_PresentationContextI
         rqDataset = nullptr;
 
         cond = DIMSE_receiveCommand(upstream, blockMode, timeout, &upstreamPresId, &rsp, &rspDataset, &rspCommand);
+        if (presID != upstreamPresId) qDebug("OPPAA");
         if (cond.bad()) qDebug() << "DIMSE_recv(upstream, N-Get) failed" << cond.text();
         delete rspCommand;
         delete rspDataset;
@@ -503,6 +495,7 @@ OFCondition PrintSCP::handleNSet(T_DIMSE_Message& rq, T_ASC_PresentationContextI
         delete rspCommand;
 
         cond = DIMSE_receiveCommand(upstream, blockMode, timeout, &upstreamPresId, &rsp, &dataset, &rspCommand);
+        if (presID != upstreamPresId) qDebug("OPPAA");
         if (cond.bad()) qDebug() << "DIMSE_recv(upstream, N-Set) failed" << cond.text();
         delete dataset;
         dataset = nullptr;
@@ -600,6 +593,7 @@ OFCondition PrintSCP::handleNAction(T_DIMSE_Message& rq, T_ASC_PresentationConte
         delete rspCommand;
 
         cond = DIMSE_receiveCommand(upstream, blockMode, timeout, &upstreamPresId, &rsp, &rspDataset, &rspCommand);
+        if (presID != upstreamPresId) qDebug("OPPAA");
         if (cond.bad()) qDebug() << "DIMSE_recv(upstream, N-Action) failed" << cond.text();
         delete rspDataset;
         rspDataset = nullptr;
@@ -699,6 +693,7 @@ OFCondition PrintSCP::handleNCreate(T_DIMSE_Message& rq, T_ASC_PresentationConte
         delete rspCommand;
 
         cond = DIMSE_receiveCommand(upstream, blockMode, timeout, &upstreamPresId, &rsp, &rspDataset, &rspCommand);
+        if (presID != upstreamPresId) qDebug("OPPAA");
         if (cond.bad()) qDebug() << "DIMSE_recv(upstream, N-Create) failed" << cond.text();
         delete rspDataset;
         rspDataset = nullptr;
@@ -794,6 +789,7 @@ OFCondition PrintSCP::handleNDelete(T_DIMSE_Message& rq, T_ASC_PresentationConte
       delete rspCommand;
 
       cond = DIMSE_receiveCommand(upstream, blockMode, timeout, &upstreamPresId, &rsp, &dataset, &rspCommand);
+      if (presID != upstreamPresId) qDebug("OPPAA");
       if (cond.bad()) qDebug() << "DIMSE_recv(upstream, N-Delete) failed" << cond.text();
       delete dataset;
       dataset = nullptr;
