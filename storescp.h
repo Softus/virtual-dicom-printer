@@ -34,7 +34,7 @@ public:
     explicit StoreSCP(const QString& server, QObject *parent = 0);
     ~StoreSCP();
 
-    bool sendToServer(DcmDataset* rqDataset, const char* sopInstance);
+    OFCondition sendToServer(DcmDataset* rqDataset, const char* sopInstance);
 
 signals:
 
@@ -44,7 +44,7 @@ private:
     T_ASC_Parameters* initAssocParams(const QString& peerAet, const QString& peerAddress, int timeout,
                                       const char *abstractSyntax, const char* transferSyntax);
 
-    bool cStoreRQ(DcmDataset* dset, const char *abstractSyntax, const char* sopInstance);
+    OFCondition cStoreRQ(DcmDataset* dset, const char *abstractSyntax, const char* sopInstance);
 
     /** destroys the association managed by this object.
      */

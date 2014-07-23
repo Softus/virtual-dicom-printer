@@ -330,7 +330,7 @@ void PrintSCP::handleClient()
                 break;
             default:
                 cond = DIMSE_BADCOMMANDTYPE; /* unsupported command */
-                qDebug() << "Cannot handle command: 0x" << STD_NAMESPACE hex << (unsigned)msg.CommandField << STD_NAMESPACE dec;
+                qDebug() << "Cannot handle command: 0x" << QString::number((unsigned)msg.CommandField, 16);
                 break;
             }
         }
@@ -914,8 +914,8 @@ void PrintSCP::printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset
                 DcmTag tag(element, group);
                 if (!info.contains(tag))
                 {
-                    qDebug() << "cannot retrieve printer information: unknnown attribute ("
-                        << STD_NAMESPACE hex << group << "," << STD_NAMESPACE hex << element
+                    qDebug() << "cannot retrieve printer information: unknown attribute ("
+                        << QString::number(group, 16) << "," << QString::number(element, 16)
                         << ") in attribute list.";
                     rsp.msg.NGetRSP.DimseStatus = STATUS_N_NoSuchAttribute;
                     delete rspDataset;
@@ -1099,14 +1099,21 @@ void PrintSCP::imageBoxNSet(T_DIMSE_Message&, DcmDataset *rqDataset, T_DIMSE_Mes
     foreach (auto server, settings.value("storage-servers").toStringList())
     {
         StoreSCP sscp(server);
-        sscp.sendToServer(rqDataset, instanceUID);
+        cond = sscp.sendToServer(rqDataset, instanceUID);
+        if (cond.bad())
+        {
+            qDebug() << "Failed to store to" << server << cond.text();
+        }
     }
 
     if (settings.value("debug").toBool())
     {
         DcmFileFormat ff(rqDataset);
         cond = ff.saveFile("rq.dcm", EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
-        qDebug() << cond.text();
+        if (cond.bad())
+        {
+            qDebug() << "Failed to save rq.dcm" << cond.text();
+        }
     }
 }
 
@@ -1165,7 +1172,7 @@ void PrintSCP::webQuery(const QMap<QString, QString>& queryParams)
     if (reply->error())
     {
         qDebug() << "Error loading " << url << reply->errorString() << reply->error();
-        error = true;
+        ++error;
     }
     else
     {
@@ -1200,14 +1207,14 @@ void PrintSCP::webQuery(const QMap<QString, QString>& queryParams)
             else
             {
                 qDebug() << "Unexpected element" << xml.name();
-                error = true;
+                ++error;
             }
         }
 
         if (xml.hasError())
         {
             qDebug() << "XML parse error" << xml.errorString();
-            error = true;
+            ++error;
         }
     }
 
@@ -1237,11 +1244,7 @@ void PrintSCP::insertTags(QMap<QString, QString>& queryParams, DicomImage *di, Q
 
         QString str;
         auto pattern = settings.value("pattern").toString();
-        if (pattern.isEmpty())
-        {
-            str = settings.value("value").toString();
-        }
-        else
+        if (!pattern.isEmpty())
         {
             str = QString::fromUtf8(tess.GetUTF8Text());
             if (str.isEmpty())
@@ -1260,6 +1263,13 @@ void PrintSCP::insertTags(QMap<QString, QString>& queryParams, DicomImage *di, Q
                     str = re.cap(1);
                 }
             }
+        }
+
+        // The pattern is absent or mismatched - send the default value
+        //
+        if (str.isEmpty())
+        {
+            str = settings.value("value").toString();
         }
 
         DcmTag tag;

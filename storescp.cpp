@@ -110,7 +110,7 @@ T_ASC_Parameters* StoreSCP::initAssocParams(const QString& peerAet, const QStrin
     return nullptr;
 }
 
-bool StoreSCP::cStoreRQ(DcmDataset* dset, const char* abstractSyntax, const char* sopInstance)
+OFCondition StoreSCP::cStoreRQ(DcmDataset* dset, const char* abstractSyntax, const char* sopInstance)
 {
     T_DIMSE_C_StoreRQ req;
     T_DIMSE_C_StoreRSP rsp;
@@ -141,10 +141,10 @@ bool StoreSCP::cStoreRQ(DcmDataset* dset, const char* abstractSyntax, const char
     }
 
     delete statusDetail;
-    return cond.good();
+    return cond;
 }
 
-bool StoreSCP::sendToServer(DcmDataset* rqDataset, const char *sopInstance)
+OFCondition StoreSCP::sendToServer(DcmDataset* rqDataset, const char *sopInstance)
 {
     DcmXfer filexfer(rqDataset->getOriginalXfer());
     auto xfer = filexfer.getXferID();
@@ -174,11 +174,11 @@ bool StoreSCP::sendToServer(DcmDataset* rqDataset, const char *sopInstance)
         presId = ASC_findAcceptedPresentationContextID(assoc, sopClass.c_str(), xfer);
         if (presId != 0)
         {
-            auto ok = cStoreRQ(rqDataset, sopClass.c_str(), sopInstance);
-            if (!ok)
-            {
-                qDebug() << "Failed to store dataset to" << server;
-            }
+            cond = cStoreRQ(rqDataset, sopClass.c_str(), sopInstance);
+        }
+        else
+        {
+            cond = makeOFCondition(0, 1, OF_error, "Presentation context id not found");
         }
 
         ASC_releaseAssociation(assoc);
@@ -186,6 +186,6 @@ bool StoreSCP::sendToServer(DcmDataset* rqDataset, const char *sopInstance)
         assoc = nullptr;
     }
     settings.endGroup();
-    return cond.good();
+    return cond;
 }
 
