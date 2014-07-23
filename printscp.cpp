@@ -911,7 +911,7 @@ void PrintSCP::printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset
 
                 // Some unknown element was requested.
                 //
-                DcmTag tag(element, group);
+                DcmTag tag(group, element);
                 if (!info.contains(tag))
                 {
                     qDebug() << "cannot retrieve printer information: unknown attribute ("
