@@ -57,6 +57,12 @@ public:
      */
     void handleClient();
 
+    /** confirms an association negotiated with negotiateAssociation() and sends
+     *  all DIMSE communication to upstream printer. Returns after the association
+     *  has been released or aborted.
+     */
+    void proxyClient();
+
     /** destroys the association managed by this object.
      */
     void dropAssociations();
