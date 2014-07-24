@@ -253,7 +253,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
             cond = ASC_createAssociationParameters(&params, settings.value("pdu-size", ASC_DEFAULTMAXPDU).toInt());
             if (cond.good())
             {
-                auto appAet = settings.value("aetitle", qApp->applicationName()).toString().toUpper().toUtf8();
+                auto appAet = settings.value("aetitle", assoc->params->DULparams.callingAPTitle).toString().toUpper().toUtf8();
                 ASC_setAPTitles(params, appAet, printerAetitle.toUtf8(), nullptr);
 
                 // Figure out the presentation addresses and copy the
