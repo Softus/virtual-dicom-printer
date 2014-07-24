@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
             //
             if (debug)
             {
-                printSCP.proxyClient();
+                printSCP.handleClient();
             }
             else
             {
@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
                 {
                     // Do the real work.
                     //
-                    printSCP.proxyClient();
+                    printSCP.handleClient();
                     break;
                 }
             }

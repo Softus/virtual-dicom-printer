@@ -51,17 +51,11 @@ public:
      */
     DVPSAssociationNegotiationResult negotiateAssociation(T_ASC_Network *upstreamNet);
 
-    /** confirms an association negotiated with negotiateAssociation() and handles
-     *  all DIMSE communication for the Print SCP. Returns after the association
-     *  has been released or aborted.
+    /** confirms an association negotiated with negotiateAssociation() and sends
+     *  all DIMSE communication to upstream printer or process by itself.
+     *  Returns after the association has been released or aborted.
      */
     void handleClient();
-
-    /** confirms an association negotiated with negotiateAssociation() and sends
-     *  all DIMSE communication to upstream printer. Returns after the association
-     *  has been released or aborted.
-     */
-    void proxyClient();
 
     /** destroys the association managed by this object.
      */
@@ -87,45 +81,55 @@ public:
 
     /** handles any incoming N-GET-RQ message and sends back N-GET-RSP.
      *  @param rq request message
-     *  @param presID presentation context over which the message was received
+     *  @param rqDataset request dataset, may be NULL
+     *  @param rsp response message
+     *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNGet(T_DIMSE_Message& rq, T_ASC_PresentationContextID presID);
+    OFCondition handleNGet(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming N-SET-RQ message and sends back N-SET-RSP.
      *  @param rq request message
-     *  @param presID presentation context over which the message was received
+     *  @param rqDataset request dataset, may be NULL
+     *  @param rsp response message
+     *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNSet(T_DIMSE_Message& rq, T_ASC_PresentationContextID presID);
+    OFCondition handleNSet(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming N-ACTION-RQ message and sends back N-ACTION-RSP.
      *  @param rq request message
-     *  @param presID presentation context over which the message was received
+     *  @param rqDataset request dataset, may be NULL
+     *  @param rsp response message
+     *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNAction(T_DIMSE_Message& rq, T_ASC_PresentationContextID presID);
+    OFCondition handleNAction(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming N-CREATE-RQ message and sends back N-CREATE-RSP.
      *  @param rq request message
-     *  @param presID presentation context over which the message was received
+     *  @param rqDataset request dataset, may be NULL
+     *  @param rsp response message
+     *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNCreate(T_DIMSE_Message& rq, T_ASC_PresentationContextID presID);
+    OFCondition handleNCreate(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming N-DELETE-RQ message and sends back N-DELETE-RSP.
      *  @param rq request message
-     *  @param presID presentation context over which the message was received
+     *  @param rqDataset request dataset, may be NULL
+     *  @param rsp response message
+     *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNDelete(T_DIMSE_Message& rq, T_ASC_PresentationContextID presID);
+    OFCondition handleNDelete(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming C-ECHO-RQ message and sends back C-ECHO-RSP.
      *  @param rq request message
-     *  @param presID presentation context over which the message was received
+     *  @param rsp response message
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleCEcho(T_DIMSE_Message& rq, T_ASC_PresentationContextID presID);
+    OFCondition handleCEcho(T_DIMSE_Message& rq, DcmDataset *, T_DIMSE_Message &rsp, DcmDataset *&);
 
     /** implements the N-GET operation for the Printer SOP Class.
      *  @param rq request message
@@ -133,42 +137,6 @@ public:
      *  @param rspDataset response dataset passed back in this parameter (if any)
      */
     void printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset *& rspDataset);
-
-    /** implements the N-SET operation for the Basic Film Session SOP Class.
-     *  @param rq request message
-     *  @param rqDataset request dataset, may be NULL
-     *  @param rsp response message, already initialized
-     *  @param rspDataset response dataset passed back in this parameter (if any)
-     */
-    void filmSessionNSet(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset);
-
-    /** implements the N-SET operation for the Basic Film Box SOP Class.
-     *  @param rq request message
-     *  @param rqDataset request dataset, may be NULL
-     *  @param rsp response message, already initialized
-     *  @param rspDataset response dataset passed back in this parameter (if any)
-     */
-    void filmBoxNSet(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset);
-
-    /** implements the N-SET operation for the Basic Grayscale Image Box SOP Class.
-     *  @param rq request message
-     *  @param rqDataset request dataset, may be NULL
-     *  @param rsp response message, already initialized
-     *  @param rspDataset response dataset passed back in this parameter (if any)
-     */
-    void imageBoxNSet(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset);
-
-    /** implements the N-ACTION operation for the Basic Film Session SOP Class.
-     *  @param rq request message
-     *  @param rsp response message, already initialized
-     */
-    void filmSessionNAction(T_DIMSE_Message& rq, T_DIMSE_Message& rsp);
-
-    /** implements the N-ACTION operation for the Basic Film Box SOP Class.
-     *  @param rq request message
-     *  @param rsp response message, already initialized
-     */
-    void filmBoxNAction(T_DIMSE_Message& rq, T_DIMSE_Message& rsp);
 
     /** implements the N-CREATE operation for the Basic Film Session SOP Class.
      *  @param rqDataset request dataset, may be NULL
@@ -203,10 +171,10 @@ public:
      */
     void filmBoxNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp);
 
-    /** implements the N-DELETE operation for the Presentation LUT SOP Class.
-     *  @param rq request message
-     *  @param rsp response message, already initialized
+    /** stores image to the storage servers.
+     *  @param rqDataset request dataset, may not be NULL
      */
+    void storeImage(DcmDataset *rqDataset);
 
     /** Add attributes from the printer settings.
      *  @param queryParams for the web service
