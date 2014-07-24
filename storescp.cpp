@@ -106,7 +106,7 @@ T_ASC_Parameters* StoreSCP::initAssocParams(const QString& peerAet, const QStrin
         }
     }
 
-    qDebug() << cond.text();
+    qDebug() << QString::fromLocal8Bit(cond.text());
     return nullptr;
 }
 

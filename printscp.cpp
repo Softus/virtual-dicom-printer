@@ -129,9 +129,9 @@ PrintSCP::PrintSCP(QObject *parent)
     , timeout(0)
     , sessionDataset(nullptr)
     , webServiceCallPerformed(false)
+    , upstreamNet(nullptr)
     , assoc(nullptr)
     , upstream(nullptr)
-    , ignoreUpstreamErrors(false)
 {
     auto oldLocale = setlocale(LC_NUMERIC, "C");
     tess.Init(nullptr, "eng", tesseract::OEM_TESSERACT_ONLY);
@@ -229,18 +229,15 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
     }
     else
     {
-        sessionDataset = new DcmDataset;
-
-        // Initialize connection to upstream printer
-
+        // Initialize connection to upstream printer, if one is configured
+        //
         settings.beginGroup(printer);
-        auto printerAetitle  = settings.value("upstream-aetitle").toString();
+        auto printerAETitle  = settings.value("upstream-aetitle").toString();
         auto printerAddress  = settings.value("upstream-address").toString();
-        ignoreUpstreamErrors = settings.value("upstream-ignore-errors").toBool();
-        auto appAet          = settings.value("aetitle", assoc->params->DULparams.callingAPTitle).toString().toUpper().toUtf8();
+        auto calleeAETitle   = settings.value("aetitle", assoc->params->DULparams.callingAPTitle).toString().toUpper();
         settings.endGroup();
 
-        if (printerAetitle.isEmpty())
+        if (printerAETitle.isEmpty())
         {
             qDebug() << "No upstream connection for" << printer;
         }
@@ -257,7 +254,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
             cond = ASC_createAssociationParameters(&params, settings.value("pdu-size", ASC_DEFAULTMAXPDU).toInt());
             if (cond.good())
             {
-                ASC_setAPTitles(params, appAet, printerAetitle.toUtf8(), nullptr);
+                ASC_setAPTitles(params, calleeAETitle.toUtf8(), printerAETitle.toUtf8(), nullptr);
 
                 // Figure out the presentation addresses and copy the
                 // corresponding values into the DcmAssoc parameters.
@@ -279,7 +276,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
 
             if (cond.bad())
             {
-                qDebug() << "Failed to create association to" << printerAetitle << cond.text();
+                qDebug() << "Failed to create association to" << printerAETitle << QString::fromLocal8Bit(cond.text());
                 ASC_destroyAssociation(&upstream);
             }
             else
@@ -294,6 +291,13 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
                          << upstream->params->DULparams.calledAPTitle;
             }
         }
+
+        // First of all, store the calee AE title.
+        // Later we will add all attributes comes from client/server to the
+        // final message. And store the message to the storage server.
+        //
+        sessionDataset = new DcmDataset;
+        sessionDataset->putAndInsertString(DCM_RETIRED_DestinationAE, calleeAETitle.toUtf8());
     }
 
     delete[] (char *)associatePDU;
@@ -358,7 +362,7 @@ void PrintSCP::handleClient()
 
         if (cond.bad())
         {
-            qDebug() << "DIMSE_receiveCommand" << cond.text();
+            qDebug() << "DIMSE_receiveCommand" << QString::fromLocal8Bit(cond.text());
             break;
         }
 
@@ -372,7 +376,7 @@ void PrintSCP::handleClient()
             cond = DIMSE_receiveDataSetInMemory(assoc, blockMode, timeout, &presID, &rqDataset, nullptr, nullptr);
             if (cond.bad())
             {
-                qDebug() << "DIMSE_receiveDataSetInMemory" << cond.text();
+                qDebug() << "DIMSE_receiveDataSetInMemory" << QString::fromLocal8Bit(cond.text());
                 break;
             }
         }
@@ -390,7 +394,7 @@ void PrintSCP::handleClient()
 
             if (cond.bad())
             {
-                qDebug() << "DIMSE_sendMessageUsingMemoryData(upstream) failed" << cond.text();
+                qDebug() << "DIMSE_sendMessageUsingMemoryData(upstream) failed" << QString::fromLocal8Bit(cond.text());
                 break;
             }
 
@@ -402,7 +406,7 @@ void PrintSCP::handleClient()
 
             if (cond.bad())
             {
-                qDebug() << "DIMSE_recv(upstream) failed" << cond.text();
+                qDebug() << "DIMSE_recv(upstream) failed" << QString::fromLocal8Bit(cond.text());
                 break;
             }
 
@@ -416,7 +420,7 @@ void PrintSCP::handleClient()
                 cond = DIMSE_receiveDataSetInMemory(upstream, blockMode, timeout, &upstreamPresId, &rspDataset, nullptr, nullptr);
                 if (cond.bad())
                 {
-                    qDebug() << "DIMSE_receiveDataSetInMemory(upstream)" << cond.text();
+                    qDebug() << "DIMSE_receiveDataSetInMemory(upstream)" << QString::fromLocal8Bit(cond.text());
                     break;
                 }
             }
@@ -488,7 +492,7 @@ void PrintSCP::handleClient()
 
         if (cond.bad())
         {
-            qDebug() << "DIMSE_sendMessageUsingMemoryData" << cond.text();
+            qDebug() << "DIMSE_sendMessageUsingMemoryData" << QString::fromLocal8Bit(cond.text());
             break;
         }
 
@@ -911,7 +915,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
         cond = sscp.sendToServer(rqDataset, instanceUID);
         if (cond.bad())
         {
-            qDebug() << "Failed to store to" << server << cond.text();
+            qDebug() << "Failed to store to" << server << QString::fromLocal8Bit(cond.text());
         }
     }
 
@@ -921,7 +925,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
         cond = ff.saveFile("rq.dcm", EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
         if (cond.bad())
         {
-            qDebug() << "Failed to save rq.dcm" << cond.text();
+            qDebug() << "Failed to save rq.dcm" << QString::fromLocal8Bit(cond.text());
         }
     }
 }

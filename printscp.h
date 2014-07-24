@@ -224,10 +224,6 @@ public:
     //
     T_ASC_Association *upstream;
 
-    // Should we eat the upstream failures?
-    //
-    bool ignoreUpstreamErrors;
-
     // OCR
     //
     tesseract::TessBaseAPI tess;

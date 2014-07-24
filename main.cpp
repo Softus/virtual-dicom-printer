@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
     OFCondition cond = ASC_initializeNetwork(NET_ACCEPTOR, port, tout, &net);
     if (cond.bad())
     {
-        qDebug() << "cannot initialise network" << cond.text();
+        qDebug() << "cannot initialise network" << QString::fromLocal8Bit(cond.text());
         return 1;
     }
 
