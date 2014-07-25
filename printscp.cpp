@@ -21,7 +21,6 @@
 #include "transcyrillic.h"
 
 #include <QCoreApplication>
-#include <QDate>
 #include <QDebug>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>

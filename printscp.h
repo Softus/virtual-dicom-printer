@@ -18,6 +18,7 @@
 #define PRINTSCP_H
 
 #include <QObject>
+#include <QDate>
 #include <QSettings>
 #include <tesseract/baseapi.h>
 
