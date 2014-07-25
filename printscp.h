@@ -23,6 +23,7 @@
 
 #define DEFAULT_LISTEN_PORT 10005
 #define DEFAULT_TIMEOUT     30
+#define DEFAULT_OCR_LANG    "eng"
 
 #define HAVE_CONFIG_H
 #include <dcmtk/config/osconfig.h>   // make sure OS specific configuration is included first
@@ -35,6 +36,7 @@ class T_ASC_Association;
 class PrintSCP : public QObject
 {
     Q_OBJECT
+
 public:
     explicit PrintSCP(QObject *parent = 0);
     ~PrintSCP();
@@ -61,7 +63,7 @@ public:
      */
     void dropAssociations();
 
-  private:
+private:
 
     /// private undefined assignment operator
     PrintSCP& operator=(const PrintSCP&);
@@ -86,7 +88,7 @@ public:
      *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNGet(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
+    OFCondition handleNGet(T_DIMSE_Message &rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming N-SET-RQ message and sends back N-SET-RSP.
      *  @param rq request message
@@ -95,7 +97,7 @@ public:
      *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNSet(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
+    OFCondition handleNSet(T_DIMSE_Message &rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming N-ACTION-RQ message and sends back N-ACTION-RSP.
      *  @param rq request message
@@ -104,7 +106,7 @@ public:
      *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNAction(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
+    OFCondition handleNAction(T_DIMSE_Message &rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming N-CREATE-RQ message and sends back N-CREATE-RSP.
      *  @param rq request message
@@ -113,7 +115,7 @@ public:
      *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNCreate(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
+    OFCondition handleNCreate(T_DIMSE_Message &rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming N-DELETE-RQ message and sends back N-DELETE-RSP.
      *  @param rq request message
@@ -122,54 +124,54 @@ public:
      *  @param rspDataset response dataset passed back in this parameter (if any)
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleNDelete(T_DIMSE_Message& rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
+    OFCondition handleNDelete(T_DIMSE_Message &rq, DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** handles any incoming C-ECHO-RQ message and sends back C-ECHO-RSP.
      *  @param rq request message
      *  @param rsp response message
      *  @return DIMSE_NORMAL if successful, an error code otherwise
      */
-    OFCondition handleCEcho(T_DIMSE_Message& rq, DcmDataset *, T_DIMSE_Message &rsp, DcmDataset *&);
+    OFCondition handleCEcho(T_DIMSE_Message &rq, DcmDataset *, T_DIMSE_Message &rsp, DcmDataset *&);
 
     /** implements the N-GET operation for the Printer SOP Class.
      *  @param rq request message
      *  @param rsp response message, already initialized
      *  @param rspDataset response dataset passed back in this parameter (if any)
      */
-    void printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset *& rspDataset);
+    void printerNGet(T_DIMSE_Message &rq, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** implements the N-CREATE operation for the Basic Film Session SOP Class.
      *  @param rqDataset request dataset, may be NULL
      *  @param rsp response message, already initialized
      *  @param rspDataset response dataset passed back in this parameter (if any)
      */
-    void filmSessionNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset);
+    void filmSessionNCreate(DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** implements the N-CREATE operation for the Basic Film Box SOP Class.
      *  @param rqDataset request dataset, may be NULL
      *  @param rsp response message, already initialized
      *  @param rspDataset response dataset passed back in this parameter (if any)
      */
-    void filmBoxNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset);
+    void filmBoxNCreate(DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** implements the N-CREATE operation for the Presentation LUT SOP Class.
      *  @param rqDataset request dataset, may be NULL
      *  @param rsp response message, already initialized
      *  @param rspDataset response dataset passed back in this parameter (if any)
      */
-    void presentationLUTNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset);
+    void presentationLUTNCreate(DcmDataset *rqDataset, T_DIMSE_Message &rsp, DcmDataset *&rspDataset);
 
     /** implements the N-DELETE operation for the Basic Film Session SOP Class.
      *  @param rq request message
      *  @param rsp response message, already initialized
      */
-    void filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp);
+    void filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message &rsp);
 
     /** implements the N-DELETE operation for the Basic Film Box SOP Class.
      *  @param rq request message
      *  @param rsp response message, already initialized
      */
-    void filmBoxNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp);
+    void filmBoxNDelete(T_DIMSE_Message &rq, T_DIMSE_Message &rsp);
 
     /** stores image to the storage servers.
      *  @param rqDataset request dataset, may not be NULL
@@ -186,7 +188,6 @@ public:
     /** Add attributes from the web service.
      *  @param queryParams for the web service
      */
-
     void webQuery(const QMap<QString, QString> &queryParams);
 
     /* class data */
@@ -205,10 +206,15 @@ public:
     QString studyInstanceUID;
     QString seriesInstanceUID;
 
+    // the dataset to log all session attributes
+    //
     DcmDataset* sessionDataset;
-    bool        webServiceCallPerformed;
 
-    // Printer AETITLE. Must have a section in the settings file.
+    // the flag to avoid extra calls to the web service for multipage prints
+    //
+    bool webServiceCallPerformed;
+
+    // Printer AETITLE. Must have a section in the settings file
     //
     QString printer;
 

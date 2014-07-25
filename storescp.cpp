@@ -110,7 +110,7 @@ T_ASC_Parameters* StoreSCP::initAssocParams(const QString& peerAet, const QStrin
     return nullptr;
 }
 
-OFCondition StoreSCP::cStoreRQ(DcmDataset* dset, const char* abstractSyntax, const char* sopInstance)
+OFCondition StoreSCP::cStoreRQ(DcmDataset* dataset, const char* abstractSyntax, const char* sopInstance)
 {
     T_DIMSE_C_StoreRQ req;
     T_DIMSE_C_StoreRSP rsp;
@@ -126,7 +126,7 @@ OFCondition StoreSCP::cStoreRQ(DcmDataset* dset, const char* abstractSyntax, con
     req.Priority = DIMSE_PRIORITY_LOW;
 
     /* finally conduct transmission of data */
-    auto cond = DIMSE_storeUser(assoc, presId, &req, nullptr, dset, nullptr, nullptr,
+    auto cond = DIMSE_storeUser(assoc, presId, &req, nullptr, dataset, nullptr, nullptr,
         0 == timeout? DIMSE_BLOCKING: DIMSE_NONBLOCKING, timeout, &rsp, &statusDetail);
 
     if (rsp.DimseStatus)

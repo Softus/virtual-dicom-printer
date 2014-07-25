@@ -44,16 +44,6 @@
 #include <dcmtk/dcmpstat/dvpsdef.h>     /* for constants */
 #include <dcmtk/dcmimgle/dcmimage.h>    /* for DicomImage */
 
-static void dump(const char* desc, DcmItem *dataset)
-{
-    if (!dataset)
-        return;
-
-    std::stringstream ss;
-    dataset->print(ss);
-    qDebug() << desc << ss.str().c_str();
-}
-
 static bool isDatasetPresent(T_DIMSE_Message &msg)
 {
     switch (msg.CommandField)
@@ -92,18 +82,28 @@ static bool isDatasetPresent(T_DIMSE_Message &msg)
     return false;
 }
 
+static void dump(const char* desc, DcmItem *dataset)
+{
+    if (!dataset)
+        return;
+
+    std::stringstream ss;
+    dataset->print(ss);
+    qDebug() << desc << QString::fromLocal8Bit(ss.str().c_str());
+}
+
 static void dumpIn(T_DIMSE_Message &msg, DcmItem *dataset)
 {
     OFString str;
     DIMSE_dumpMessage(str, msg, DIMSE_INCOMING, dataset);
-    qDebug() << str.c_str();
+    qDebug() << QString::fromLocal8Bit(str.c_str());
 }
 
 static void dumpOut(T_DIMSE_Message &msg, DcmItem *dataset)
 {
     OFString str;
     DIMSE_dumpMessage(str, msg, DIMSE_OUTGOING, dataset);
-    qDebug() << str.c_str();
+    qDebug() << QString::fromLocal8Bit(str.c_str());
 }
 
 static void copyItems(DcmItem* src, DcmItem *dst)
@@ -133,11 +133,12 @@ PrintSCP::PrintSCP(QObject *parent)
     , assoc(nullptr)
     , upstream(nullptr)
 {
+    QSettings settings;
+    auto ocrLang = settings.value("ocr-lang", DEFAULT_OCR_LANG).toString();
     auto oldLocale = setlocale(LC_NUMERIC, "C");
-    tess.Init(nullptr, "eng", tesseract::OEM_TESSERACT_ONLY);
+    tess.Init(nullptr, ocrLang.toUtf8(), tesseract::OEM_TESSERACT_ONLY);
     setlocale(LC_NUMERIC, oldLocale);
 
-    QSettings settings;
     blockMode = (T_DIMSE_BlockingMode)settings.value("block-mode", blockMode).toInt();
     timeout   = settings.value("timeout", timeout).toInt();
 }

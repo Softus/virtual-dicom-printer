@@ -21,7 +21,7 @@
 
 #define HAVE_CONFIG_H
 #include <dcmtk/config/osconfig.h> /* make sure OS specific configuration is included first */
-#include <dcmtk/dcmpstat/dvpstyp.h>         /* for enum types */
+#include <dcmtk/dcmpstat/dvpstyp.h> /* for enum types */
 #include <dcmtk/dcmnet/dimse.h>
 
 class DicomImage;
@@ -30,26 +30,45 @@ class T_ASC_Association;
 class StoreSCP : public QObject
 {
     Q_OBJECT
+
 public:
     explicit StoreSCP(const QString& server, QObject *parent = 0);
     ~StoreSCP();
 
-    OFCondition sendToServer(DcmDataset* rqDataset, const char* sopInstance);
-
-signals:
-
-public slots:
+    /** transfers the dataset to the storage server.
+     *  @param dataset to send
+     *  @param sopInstance unique identifier of the dataset
+     *  @return result indicating whether transfer was successful
+     */
+    OFCondition sendToServer(DcmDataset* dataset, const char* sopInstance);
 
 private:
+    /** prepares connection parameters for the Store SCP.
+     *  @param peerAet called AETITLE of the server
+     *  @param peerAddress network address of the server
+     *  @param timeout timeout for network operations, in seconds
+     *  @param abstractSyntax SOP class from the dataset
+     *  @param transferSyntax transfer syntax from the dataset
+     *  @return result indicating whether association negotiation was successful,
+     *    unsuccessful or whether termination of the server was requested.
+     */
     T_ASC_Parameters* initAssocParams(const QString& peerAet, const QString& peerAddress, int timeout,
                                       const char *abstractSyntax, const char* transferSyntax);
 
-    OFCondition cStoreRQ(DcmDataset* dset, const char *abstractSyntax, const char* sopInstance);
+    /** transfers the dataset to the storage server.
+     *  @param dataset to send
+     *  @param abstractSyntax SOP class from the dataset
+     *  @param sopInstance unique identifier of the dataset
+     *  @return result indicating whether transfer was successful
+     */
+    OFCondition cStoreRQ(DcmDataset* dataset, const char *abstractSyntax, const char* sopInstance);
 
     /** destroys the association managed by this object.
      */
     void dropAssociation();
 
+    // Our section in the configuration file
+    //
     QString server;
 
     // blocking mode for receive
@@ -68,6 +87,8 @@ private:
     //
     T_ASC_Association *assoc;
 
+    // Transfer context (usually LittleEndianExplicit)
+    //
     T_ASC_PresentationContextID presId;
 };
 
