@@ -25,7 +25,7 @@
 #include <dcmtk/dcmnet/dimse.h>
 
 class DicomImage;
-class T_ASC_Association;
+struct T_ASC_Association;
 
 class StoreSCP : public QObject
 {

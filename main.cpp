@@ -92,7 +92,11 @@ int main(int argc, char *argv[])
      * and run by another user.  Running as root user may be
      * potentially disasterous if this program screws up badly.
      */
-    setuid(getuid());
+    auto err = setuid(getuid());
+    if (err)
+    {
+        qDebug() << "setuid failed" << errno << "this may dangerous";
+    }
 #endif
 
 #ifdef HAVE_FORK
@@ -131,7 +135,8 @@ int main(int argc, char *argv[])
         }
         else if (DVPSJ_success == ass)
         {
-            // A new client just been connected.
+#ifdef HAVE_FORK
+        // A new client just been connected.
             //
             if (debug)
             {
@@ -153,6 +158,9 @@ int main(int argc, char *argv[])
                     break;
                 }
             }
+#else
+            printSCP.handleClient();
+#endif
         }
     }
 

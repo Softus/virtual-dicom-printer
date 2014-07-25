@@ -8,6 +8,8 @@ QT          += core network
 QT          -= gui
 LIBS        += -ldcmpstat -ldcmnet -ldcmdata -ldcmimgle -loflog -lofstd -lz -ltesseract
 unix:LIBS   += -lwrap -lssl
+win32:LIBS  += -lws2_32 -ladvapi32 -lnetapi32
+
 # GCC tuning
 *-g++*:QMAKE_CXXFLAGS += -std=c++0x -Wno-multichar
 
