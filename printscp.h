@@ -184,12 +184,12 @@ private:
      *  @param di image from dataset, may not be NULL
      *  @param settings to read attributes from
      */
-    void insertTags(QMap<QString, QString> &queryParams, DicomImage *di, QSettings &settings);
+    void insertTags(QVariantMap &queryParams, DicomImage *di, QSettings &settings);
 
     /** Add attributes from the web service.
      *  @param queryParams for the web service
      */
-    void webQuery(const QMap<QString, QString> &queryParams);
+    void webQuery(QVariantMap &queryParams);
 
     /* class data */
 
@@ -210,10 +210,6 @@ private:
     // the dataset to log all session attributes
     //
     DcmDataset* sessionDataset;
-
-    // the flag to avoid extra calls to the web service for multipage prints
-    //
-    bool webServiceCallPerformed;
 
     // Printer AETITLE. Must have a section in the settings file
     //

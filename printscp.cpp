@@ -25,13 +25,14 @@
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QJsonDocument>
+#include <QJsonObject>
+#endif
 #include <QRect>
 #include <QRegExp>
 #include <QSettings>
 #include <QStringList>
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
-#include <QUrlQuery>
-#endif
 #include <QXmlStreamReader>
 
 #include <locale.h> // Required for tesseract
@@ -107,8 +108,12 @@ static void dumpOut(T_DIMSE_Message &msg, DcmItem *dataset)
 
 static void copyItems(DcmItem* src, DcmItem *dst)
 {
+    // The source dataset is optional
+    //
     if (!src)
+    {
         return;
+    }
 
     DcmObject* obj = nullptr;
     while (obj = src->nextInContainer(obj), obj != nullptr)
@@ -116,8 +121,12 @@ static void copyItems(DcmItem* src, DcmItem *dst)
         if (obj->getVR() == EVR_SQ)
         {
             // Ignore ReferencedFilmSessionSequence
+            //
             continue;
         }
+
+        // Insert with overwrite
+        //
         dst->insert(dynamic_cast<DcmElement*>(obj->clone()), true);
     }
 }
@@ -127,7 +136,6 @@ PrintSCP::PrintSCP(QObject *parent)
     , blockMode(DIMSE_BLOCKING)
     , timeout(0)
     , sessionDataset(nullptr)
-    , webServiceCallPerformed(false)
     , upstreamNet(nullptr)
     , assoc(nullptr)
     , upstream(nullptr)
@@ -298,6 +306,11 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         //
         sessionDataset = new DcmDataset;
         sessionDataset->putAndInsertString(DCM_RETIRED_DestinationAE, calleeAETitle.toUtf8());
+
+        // Fill in with some defaults
+        //
+        sessionDataset->putAndInsertString(DCM_PatientID,   "0", false);
+        sessionDataset->putAndInsertString(DCM_PatientName, "^", false);
     }
 
     delete[] (char *)associatePDU;
@@ -335,7 +348,6 @@ void PrintSCP::dropAssociations()
 
     delete sessionDataset;
     sessionDataset = nullptr;
-    webServiceCallPerformed = false;
 }
 
 void PrintSCP::handleClient()
@@ -458,18 +470,19 @@ void PrintSCP::handleClient()
         if (DIMSE_N_SET_RQ == rq.CommandField
            && 0 == strcmp(rq.msg.NSetRQ.RequestedSOPClassUID, UID_BasicGrayscaleImageBoxSOPClass))
         {
+            studyInstanceUID = rq.msg.NSetRQ.RequestedSOPInstanceUID;
             storeImage(rqDataset);
         }
-        else if (DIMSE_N_CREATE_RQ == rq.CommandField
-                && 0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmSessionSOPClass))
+        else if (DIMSE_N_CREATE_RQ == rq.CommandField)
         {
-            filmSessionUID = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
-
-            char uid[100];
-            dcmGenerateUniqueIdentifier(uid,  SITE_STUDY_UID_ROOT);
-            studyInstanceUID = uid;
-            dcmGenerateUniqueIdentifier(uid,  SITE_SERIES_UID_ROOT);
-            seriesInstanceUID = uid;
+            if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmSessionSOPClass))
+            {
+                filmSessionUID = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
+            }
+            else if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmBoxSOPClass))
+            {
+                seriesInstanceUID  = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
+            }
         }
         else
         {
@@ -685,6 +698,38 @@ OFCondition PrintSCP::handleNDelete(T_DIMSE_Message& rq, DcmDataset *, T_DIMSE_M
     return cond;
 }
 
+static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag, const QVariant& value)
+{
+    if (tag.getVR().isaString())
+    {
+        return rspDataset->putAndInsertString(tag, value.toString().toUtf8());
+    }
+
+    switch (tag.getEVR())
+    {
+    case EVR_FL:
+    case EVR_OF:
+        return rspDataset->putAndInsertFloat32(tag, value.toFloat());
+    case EVR_FD:
+        return rspDataset->putAndInsertFloat64(tag, value.toDouble());
+    case EVR_SL:
+        return rspDataset->putAndInsertSint32(tag, value.toInt());
+    case EVR_UL:
+        return rspDataset->putAndInsertUint32(tag, value.toUInt());
+    case EVR_SS:
+        return rspDataset->putAndInsertSint16(tag, (Sint16)value.toInt());
+    case EVR_US:
+        return rspDataset->putAndInsertUint16(tag, (Uint16)value.toUInt());
+    default:
+        break;
+    }
+
+    //TODO: implement other types then strings
+    //
+    qDebug() << "VR" << tag.getVRName() << "not implemented";
+    return EC_IllegalParameter;
+}
+
 void PrintSCP::printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset *& rspDataset)
 {
     QString printerInstance(UID_PrinterSOPInstance);
@@ -762,15 +807,7 @@ void PrintSCP::printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset
                     break;
                 }
 
-                if (tag.getVR().isaString())
-                {
-                    rspDataset->putAndInsertString(tag, info[tag].toString().toUtf8());
-                }
-                else
-                {
-                    //TODO: implement other types then strings
-                    qDebug() << "VR" << tag.getVRName() << "not implemented";
-                }
+                putAndInsertVariant(rspDataset, tag, info[tag]);
             }
         }
     }
@@ -821,18 +858,19 @@ void PrintSCP::presentationLUTNCreate(DcmDataset *, T_DIMSE_Message&, DcmDataset
 
 void PrintSCP::filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp)
 {
-  if (filmSessionUID == rq.msg.NDeleteRQ.RequestedSOPInstanceUID)
-  {
-    filmSessionUID.clear();
-    studyInstanceUID.clear();
-    seriesInstanceUID.clear();
-  }
-  else
-  {
-    // film session does not exist or wrong instance UID
-    qDebug() << "cannot delete film session with instance UID '" << rq.msg.NDeleteRQ.RequestedSOPInstanceUID << "': object does not exist.";
-    rsp.msg.NDeleteRSP.DimseStatus = STATUS_N_NoSuchObjectInstance;
-  }
+    if (filmSessionUID == rq.msg.NDeleteRQ.RequestedSOPInstanceUID)
+    {
+        filmSessionUID.clear();
+        studyInstanceUID.clear();
+        seriesInstanceUID.clear();
+    }
+    else
+    {
+        // film session does not exist or wrong instance UID
+        //
+        qDebug() << "cannot delete film session with instance UID '" << rq.msg.NDeleteRQ.RequestedSOPInstanceUID << "': object does not exist.";
+        rsp.msg.NDeleteRSP.DimseStatus = STATUS_N_NoSuchObjectInstance;
+    }
 }
 
 void PrintSCP::filmBoxNDelete(T_DIMSE_Message&, T_DIMSE_Message&)
@@ -882,7 +920,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
     rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME, false);
 
     QSettings settings;
-    QMap<QString, QString> queryParams;
+    QVariantMap queryParams;
     DicomImage di(rqDataset, rqDataset->getOriginalXfer());
     void *data;
     if (di.createJavaAWTBitmap(data, 0, 32) && data)
@@ -901,11 +939,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
         delete[] (Uint32*)data;
     }
 
-    if (!webServiceCallPerformed)
-    {
-        webServiceCallPerformed = true;
-        webQuery(queryParams);
-    }
+    webQuery(queryParams);
 
     copyItems(sessionDataset, rqDataset);
 
@@ -930,18 +964,65 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
     }
 }
 
-void PrintSCP::webQuery(const QMap<QString, QString>& queryParams)
+static QByteArray writeXmlRequest(const QString& root, const QVariantMap& map)
+{
+    QByteArray data;
+    QXmlStreamWriter xml(&data);
+
+    xml.writeStartDocument();
+    xml.writeStartElement(root);
+    for (auto i = map.constBegin(); i != map.constEnd(); ++i)
+    {
+        xml.writeTextElement(i.key(), i.value().toString());
+    }
+    xml.writeEndElement();
+    xml.writeEndDocument();
+
+    return data;
+}
+
+static QVariantMap readXmlResponse(const QByteArray& data)
+{
+    QVariantMap map;
+    QXmlStreamReader xml(data);
+
+    while (xml.readNextStartElement())
+    {
+        if (xml.name() == "element")
+        {
+            auto key = xml.attributes().value("tag").toString();
+            map[key] = xml.readElementText();
+        }
+        else if (xml.name() != "data-set")
+        {
+            qDebug() << "Unexpected element" << xml.name();
+        }
+    }
+
+    return map;
+}
+
+void PrintSCP::webQuery(QVariantMap &queryParams)
 {
     QSettings settings;
+    QVariantMap ret;
 
-    auto url = settings.value("query-url").toUrl();
-    auto userName = settings.value("username").toString();
-    auto password = settings.value("password").toString();
+    settings.beginGroup("query");
+    auto url         = settings.value("url").toUrl();
+    auto userName    = settings.value("username").toString();
+    auto password    = settings.value("password").toString();
+    auto method      = settings.value("method", "get").toString();
+    auto contendType = settings.value("content-type", "application/json").toString();
+    settings.endGroup();
 
     settings.beginGroup(printer);
-    url = settings.value("query-url", url).toUrl();
-    userName = settings.value("username", userName).toString();
-    password = settings.value("password", password).toString();
+    settings.beginGroup("query");
+    url         = settings.value("url",          url).toUrl();
+    userName    = settings.value("username",     userName).toString();
+    password    = settings.value("password",     password).toString();
+    method      = settings.value("method",       method).toString();
+    contendType = settings.value("content-type", contendType).toString();
+    settings.endGroup();
     settings.endGroup();
 
     if (url.isEmpty())
@@ -949,97 +1030,97 @@ void PrintSCP::webQuery(const QMap<QString, QString>& queryParams)
         return;
     }
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
-    QUrlQuery query(url);
-#else
-#define query url
-#endif
-    query.addQueryItem("studyInstanceUID", filmSessionUID);
-    query.addQueryItem("examinationDate", QDate::currentDate().toString("yyyy-MM-dd"));
+    bool error = false;
+    QNetworkAccessManager mgr;
 
-    for (auto i = queryParams.constBegin(); i != queryParams.constEnd(); ++i)
+    QByteArray data;
+    if (contendType.endsWith("xml", Qt::CaseInsensitive))
     {
-        query.addQueryItem(i.key(), i.value());
+        // These parameters are hardcoded
+        //
+        queryParams["study-instance-uid"] = studyInstanceUID;
+        queryParams["medical-service-date"] = QDate::currentDate().toString("yyyy-MM-dd");
+
+        data = writeXmlRequest("save-hardcopy-grayscale-image-request", queryParams);
+    }
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+    else if (contendType.endsWith("json", Qt::CaseInsensitive))
+    {
+        // These parameters are hardcoded
+        //
+        queryParams["studyInstanceUID"] = studyInstanceUID;
+        queryParams["medicalServiceDate"] = QDate::currentDate().toString("yyyy-MM-dd");
+
+        data = QJsonDocument(QJsonObject::fromVariantMap(queryParams)).toJson();
+    }
+#endif
+    else
+    {
+        qDebug() << contendType << "not supported";
     }
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
-    url.setQuery(query);
-#else
-#undef query
-#endif
-
     QNetworkRequest rq(url);
+    rq.setRawHeader("Accept", "*");
     if (!userName.isEmpty())
     {
         rq.setRawHeader("Authorization", "Basic " + QByteArray(userName.append(':').append(password).toUtf8()).toBase64());
     }
 
-    bool error = false;
-    QNetworkAccessManager mgr;
-    auto reply = mgr.get(rq);
-    while (reply->isRunning())
+    rq.setHeader(QNetworkRequest::ContentTypeHeader, contendType);
+    rq.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
+    qDebug() << url << data;
+    auto reply = mgr.post(rq, data);
+
+    for (int secs = 0; reply->isRunning() && (timeout <= 0 || secs < timeout); ++secs)
     {
         qApp->processEvents(QEventLoop::AllEvents, 1000);
     }
 
-    if (reply->error())
+    if (reply->isRunning())
     {
-        qDebug() << "Error loading " << url << reply->errorString() << reply->error();
+        reply->abort();
+        qApp->processEvents(QEventLoop::AllEvents, 1000);
         ++error;
+    }
+
+    auto responseContentType = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+    auto response = reply->readAll();
+
+    if (settings.value("debug").toBool())
+    {
+        qDebug() << responseContentType << QString::fromUtf8(response);
+    }
+
+    if (responseContentType.endsWith("xml"))
+    {
+        ret = readXmlResponse(response);
+    }
+    else if (responseContentType.endsWith("json"))
+    {
+        ret = QJsonDocument::fromJson(response).object().toVariantMap();
     }
     else
     {
-        auto response = reply->readAll();
-        if (settings.value("debug").toBool())
-        {
-            qDebug() << QString::fromUtf8(response);
-        }
-
-        QXmlStreamReader xml(response);
-        while (xml.readNextStartElement())
-        {
-            if (xml.name() == "element")
-            {
-                DcmTag tag;
-                auto key = xml.attributes().value("tag");
-                if (DcmTag::findTagFromName(key.toUtf8(), tag).bad())
-                {
-                    qDebug() << "Unknown DCM tag" << key;
-                }
-                else
-                {
-                    auto str = translateToLatin(xml.readElementText());
-                    qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
-                    sessionDataset->putAndInsertString(tag, str.toUtf8());
-                }
-            }
-            else if (xml.name() == "data-set")
-            {
-                continue;
-            }
-            else
-            {
-                qDebug() << "Unexpected element" << xml.name();
-                ++error;
-            }
-        }
-
-        if (xml.hasError())
-        {
-            qDebug() << "XML parse error" << xml.errorString();
-            ++error;
-        }
+        qDebug() << "response content type" << responseContentType << "not supported";
     }
 
-    if (error)
+    for (auto i = ret.constBegin(); i != ret.constEnd(); ++i)
     {
-        // In case of eny error set PatientId to '0'
-        //
-        sessionDataset->putAndInsertString(DCM_PatientID, "0");
+        DcmTag tag;
+        if (DcmTag::findTagFromName(i.key().toUtf8(), tag).bad())
+        {
+            qDebug() << "Unknown DCM tag" << i.key();
+        }
+        else
+        {
+            auto str = translateToLatin(i.value().toString());
+            qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
+            sessionDataset->putAndInsertString(tag, str.toUtf8());
+        }
     }
 }
 
-void PrintSCP::insertTags(QMap<QString, QString>& queryParams, DicomImage *di, QSettings& settings)
+void PrintSCP::insertTags(QVariantMap &queryParams, DicomImage *di, QSettings& settings)
 {
     auto tagCount = settings.beginReadArray("tag");
     for (int i = 0; i < tagCount; ++i)
@@ -1085,20 +1166,24 @@ void PrintSCP::insertTags(QMap<QString, QString>& queryParams, DicomImage *di, Q
             str = settings.value("value").toString();
         }
 
-        DcmTag tag;
-        if (DcmTag::findTagFromName(key.toUtf8(), tag).bad())
+        auto param = settings.value("query-parameter").toString();
+        if (!param.isEmpty())
         {
-            qDebug() << "Unknown DCM tag" << key;
+            queryParams[param] = str;
         }
-        else
+
+        if (!key.isEmpty())
         {
-            auto param = settings.value("query-parameter").toString();
-            if (!param.isEmpty())
+            DcmTag tag;
+            if (DcmTag::findTagFromName(key.toUtf8(), tag).bad())
             {
-                queryParams[param] = str;
+                qDebug() << "Unknown DCM tag" << key;
             }
-            qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str << param;
-            sessionDataset->putAndInsertString(tag, str.toUtf8());
+            else
+            {
+                qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str << param;
+                sessionDataset->putAndInsertString(tag, str.toUtf8());
+            }
         }
     }
     settings.endArray();
