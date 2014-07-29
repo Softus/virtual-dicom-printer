@@ -134,7 +134,7 @@ static void copyItems(DcmItem* src, DcmItem *dst)
 PrintSCP::PrintSCP(QObject *parent)
     : QObject(parent)
     , blockMode(DIMSE_BLOCKING)
-    , timeout(0)
+    , timeout(DEFAULT_TIMEOUT)
     , sessionDataset(nullptr)
     , upstreamNet(nullptr)
     , assoc(nullptr)
@@ -1011,8 +1011,7 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     auto url         = settings.value("url").toUrl();
     auto userName    = settings.value("username").toString();
     auto password    = settings.value("password").toString();
-    auto method      = settings.value("method", "get").toString();
-    auto contendType = settings.value("content-type", "application/json").toString();
+    auto contendType = settings.value("content-type", DEFAULT_CONTENT_TYPE).toString();
     settings.endGroup();
 
     settings.beginGroup(printer);
@@ -1020,7 +1019,6 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     url         = settings.value("url",          url).toUrl();
     userName    = settings.value("username",     userName).toString();
     password    = settings.value("password",     password).toString();
-    method      = settings.value("method",       method).toString();
     contendType = settings.value("content-type", contendType).toString();
     settings.endGroup();
     settings.endGroup();

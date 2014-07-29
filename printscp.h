@@ -22,9 +22,10 @@
 #include <QSettings>
 #include <tesseract/baseapi.h>
 
-#define DEFAULT_LISTEN_PORT 10005
-#define DEFAULT_TIMEOUT     30
-#define DEFAULT_OCR_LANG    "eng"
+#define DEFAULT_LISTEN_PORT  10005
+#define DEFAULT_TIMEOUT      30
+#define DEFAULT_OCR_LANG     "eng"
+#define DEFAULT_CONTENT_TYPE "application/xml"
 
 #define HAVE_CONFIG_H
 #include <dcmtk/config/osconfig.h>   // make sure OS specific configuration is included first
