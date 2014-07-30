@@ -1093,10 +1093,12 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     {
         ret = readXmlResponse(response);
     }
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
     else if (responseContentType.endsWith("json"))
     {
         ret = QJsonDocument::fromJson(response).object().toVariantMap();
     }
+#endif
     else
     {
         qDebug() << "response content type" << responseContentType << "not supported";
