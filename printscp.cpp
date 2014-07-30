@@ -1068,14 +1068,16 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     rq.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
     qDebug() << url << data;
     auto reply = mgr.post(rq, data);
+    auto start = QDateTime::currentMSecsSinceEpoch();
 
-    for (int secs = 0; reply->isRunning() && (timeout <= 0 || secs < timeout); ++secs)
+    while (reply->isRunning() && (timeout <= 0 || timeout > (QDateTime::currentMSecsSinceEpoch() - start) / 1000))
     {
         qApp->processEvents(QEventLoop::AllEvents, 1000);
     }
 
     if (reply->isRunning())
     {
+        qDebug() << "Web query request timeout, aborting";
         reply->abort();
         qApp->processEvents(QEventLoop::AllEvents, 1000);
         ++error;
@@ -1086,7 +1088,8 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
 
     if (settings.value("debug").toBool())
     {
-        qDebug() << responseContentType << QString::fromUtf8(response);
+        qDebug() << reply->error() << reply->errorString()
+                 << responseContentType << QString::fromUtf8(response);
     }
 
     if (responseContentType.endsWith("xml"))
@@ -1123,6 +1126,9 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
 void PrintSCP::insertTags(QVariantMap &queryParams, DicomImage *di, QSettings& settings)
 {
     auto tagCount = settings.beginReadArray("tag");
+    QRect prevRect;
+    QString ocrText;
+
     for (int i = 0; i < tagCount; ++i)
     {
         settings.setArrayIndex(i);
@@ -1133,24 +1139,28 @@ void PrintSCP::insertTags(QVariantMap &queryParams, DicomImage *di, QSettings& s
         {
             if (rect.left() < 0) rect.moveLeft(di->getWidth() + rect.left());
             if (rect.top() < 0) rect.moveTop(di->getHeight() + rect.top());
-            tess.SetRectangle(rect.left(), rect.top(), rect.width(), rect.height());
+            if (prevRect != rect)
+            {
+                tess.SetRectangle(rect.left(), rect.top(), rect.width(), rect.height());
+                prevRect = rect;
+                ocrText = QString::fromUtf8(tess.GetUTF8Text());
+            }
         }
 
         QString str;
         auto pattern = settings.value("pattern").toString();
         if (!pattern.isEmpty())
         {
-            str = QString::fromUtf8(tess.GetUTF8Text());
-            if (str.isEmpty())
+            if (ocrText.isEmpty())
             {
                 qDebug() << "No text on the image for idx" << i << "key" << key << "rect" << rect;
             }
             else
             {
                 QRegExp re(pattern);
-                if (re.indexIn(str) < 0)
+                if (re.indexIn(ocrText) < 0)
                 {
-                    qDebug() << str << "does not match" << pattern;
+                    qDebug() << ocrText << "does not match" << pattern;
                 }
                 else
                 {
