@@ -471,7 +471,7 @@ void PrintSCP::handleClient()
         if (DIMSE_N_SET_RQ == rq.CommandField
            && QString(rq.msg.NSetRQ.RequestedSOPClassUID).startsWith(UID_BasicGrayscaleImageBoxSOPClass))
         {
-            studyInstanceUID = rq.msg.NSetRQ.RequestedSOPInstanceUID;
+            SOPInstanceUID = rq.msg.NSetRQ.RequestedSOPInstanceUID;
             storeImage(rqDataset);
         }
         else
@@ -861,7 +861,7 @@ void PrintSCP::filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp)
     if (filmSessionUID == rq.msg.NDeleteRQ.RequestedSOPInstanceUID)
     {
         filmSessionUID.clear();
-        studyInstanceUID.clear();
+        SOPInstanceUID.clear();
         seriesInstanceUID.clear();
     }
     else
@@ -906,12 +906,8 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
 
     rqDataset->putAndInsertString(DCM_SpecificCharacterSet, "ISO_IR 192"); // UTF-8
 
-    // Add all required UIDs to the image
-    //
-    char instanceUID[100] = {0};
-    dcmGenerateUniqueIdentifier(instanceUID,  SITE_INSTANCE_UID_ROOT);
-    rqDataset->putAndInsertString(DCM_SOPInstanceUID,    instanceUID, false);
-    rqDataset->putAndInsertString(DCM_StudyInstanceUID,  studyInstanceUID.toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_SOPInstanceUID,    SOPInstanceUID.toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_StudyInstanceUID,  filmSessionUID.toUtf8(), false);
     rqDataset->putAndInsertString(DCM_SeriesInstanceUID, seriesInstanceUID.toUtf8(), false);
 
     auto now = QDateTime::currentDateTime();
@@ -950,7 +946,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
     foreach (auto server, settings.value("storage-servers").toStringList())
     {
         StoreSCP sscp(server);
-        cond = sscp.sendToServer(rqDataset, instanceUID);
+        cond = sscp.sendToServer(rqDataset, SOPInstanceUID.toUtf8());
         if (cond.bad())
         {
             qDebug() << "Failed to store to" << server << QString::fromLocal8Bit(cond.text());
@@ -1041,7 +1037,7 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     {
         // These parameters are hardcoded
         //
-        queryParams["study-instance-uid"] = studyInstanceUID;
+        queryParams["study-instance-uid"] = SOPInstanceUID;
         queryParams["medical-service-date"] = QDate::currentDate().toString("yyyy-MM-dd");
 
         data = writeXmlRequest("save-hardcopy-grayscale-image-request", queryParams);
@@ -1051,7 +1047,7 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     {
         // These parameters are hardcoded
         //
-        queryParams["studyInstanceUID"] = studyInstanceUID;
+        queryParams["studyInstanceUID"] = SOPInstanceUID;
         queryParams["medicalServiceDate"] = QDate::currentDate().toString("yyyy-MM-dd");
 
         data = QJsonDocument(QJsonObject::fromVariantMap(queryParams)).toJson();
