@@ -469,7 +469,7 @@ void PrintSCP::handleClient()
         }
 
         if (DIMSE_N_SET_RQ == rq.CommandField
-           && 0 == strcmp(rq.msg.NSetRQ.RequestedSOPClassUID, UID_BasicGrayscaleImageBoxSOPClass))
+           && QString(rq.msg.NSetRQ.RequestedSOPClassUID).startsWith(UID_BasicGrayscaleImageBoxSOPClass))
         {
             studyInstanceUID = rq.msg.NSetRQ.RequestedSOPInstanceUID;
             storeImage(rqDataset);
@@ -960,7 +960,8 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
     if (settings.value("debug").toBool())
     {
         DcmFileFormat ff(rqDataset);
-        cond = ff.saveFile("rq.dcm", EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
+        cond = ff.saveFile(QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz").append(".dcm").toUtf8(),
+                           EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
         if (cond.bad())
         {
             qDebug() << "Failed to save rq.dcm" << QString::fromLocal8Bit(cond.text());
