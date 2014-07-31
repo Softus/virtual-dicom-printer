@@ -1133,6 +1133,10 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
             }
             else
             {
+                // We shouldn't call translateToLatin for integers & dates,
+                // but it is clear that translateToLatin does not affect
+                // numbers nor punctuation characters.
+                //
                 auto str = translateToLatin(i.value().toString());
                 qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
                 putAndInsertVariant(sessionDataset, tag, str);

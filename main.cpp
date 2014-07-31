@@ -135,28 +135,21 @@ int main(int argc, char *argv[])
         }
         else if (DVPSJ_success == ass)
         {
-#ifdef HAVE_FORK
-        // A new client just been connected.
+#if defined(HAVE_FORK) && !defined(QT_DEBUG)
+            // A new client just been connected.
             //
-            if (debug)
+            auto pid = fork();
+            if (pid < 0)
             {
-                printSCP.handleClient();
+                qDebug() << "fork() failed, err" << errno;
+                printSCP.dropAssociations();
             }
-            else
+            else if (pid == 0)
             {
-                auto pid = fork();
-                if (pid < 0)
-                {
-                    qDebug() << "fork() failed, err" << errno;
-                    printSCP.dropAssociations();
-                }
-                else if (pid == 0)
-                {
-                    // Do the real work.
-                    //
-                    printSCP.handleClient();
-                    break;
-                }
+                // Do the real work.
+                //
+                printSCP.handleClient();
+                break;
             }
 #else
             printSCP.handleClient();
