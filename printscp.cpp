@@ -48,31 +48,31 @@ static bool isDatasetPresent(T_DIMSE_Message &msg)
 {
     switch (msg.CommandField)
     {
-    case DIMSE_C_STORE_RQ: return msg.msg.CStoreRQ.DataSetType != DIMSE_DATASET_NULL;
+    case DIMSE_C_STORE_RQ:  return msg.msg.CStoreRQ.DataSetType  != DIMSE_DATASET_NULL;
     case DIMSE_C_STORE_RSP: return msg.msg.CStoreRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_C_GET_RQ: return msg.msg.CGetRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_C_GET_RSP: return msg.msg.CGetRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_C_FIND_RQ: return msg.msg.CFindRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_C_FIND_RSP: return msg.msg.CFindRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_C_MOVE_RQ: return msg.msg.CMoveRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_C_MOVE_RSP: return msg.msg.CMoveRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_C_ECHO_RQ: return msg.msg.CEchoRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_C_ECHO_RSP: return msg.msg.CEchoRSP.DataSetType != DIMSE_DATASET_NULL;
+    case DIMSE_C_GET_RQ:    return msg.msg.CGetRQ.DataSetType    != DIMSE_DATASET_NULL;
+    case DIMSE_C_GET_RSP:   return msg.msg.CGetRSP.DataSetType   != DIMSE_DATASET_NULL;
+    case DIMSE_C_FIND_RQ:   return msg.msg.CFindRQ.DataSetType   != DIMSE_DATASET_NULL;
+    case DIMSE_C_FIND_RSP:  return msg.msg.CFindRSP.DataSetType  != DIMSE_DATASET_NULL;
+    case DIMSE_C_MOVE_RQ:   return msg.msg.CMoveRQ.DataSetType   != DIMSE_DATASET_NULL;
+    case DIMSE_C_MOVE_RSP:  return msg.msg.CMoveRSP.DataSetType  != DIMSE_DATASET_NULL;
+    case DIMSE_C_ECHO_RQ:   return msg.msg.CEchoRQ.DataSetType   != DIMSE_DATASET_NULL;
+    case DIMSE_C_ECHO_RSP:  return msg.msg.CEchoRSP.DataSetType  != DIMSE_DATASET_NULL;
     case DIMSE_C_CANCEL_RQ: return msg.msg.CCancelRQ.DataSetType != DIMSE_DATASET_NULL;
     /* there is no DIMSE_C_CANCEL_RSP */
 
-    case DIMSE_N_EVENT_REPORT_RQ: return msg.msg.NEventReportRQ.DataSetType != DIMSE_DATASET_NULL;
+    case DIMSE_N_EVENT_REPORT_RQ:  return msg.msg.NEventReportRQ.DataSetType  != DIMSE_DATASET_NULL;
     case DIMSE_N_EVENT_REPORT_RSP: return msg.msg.NEventReportRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_GET_RQ: return msg.msg.NGetRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_GET_RSP: return msg.msg.NGetRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_SET_RQ: return msg.msg.NSetRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_SET_RSP: return msg.msg.NSetRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_ACTION_RQ: return msg.msg.NActionRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_ACTION_RSP: return msg.msg.NActionRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_CREATE_RQ: return msg.msg.NCreateRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_CREATE_RSP: return msg.msg.NCreateRSP.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_DELETE_RQ: return msg.msg.NDeleteRQ.DataSetType != DIMSE_DATASET_NULL;
-    case DIMSE_N_DELETE_RSP: return msg.msg.NDeleteRSP.DataSetType != DIMSE_DATASET_NULL;
+    case DIMSE_N_GET_RQ:           return msg.msg.NGetRQ.DataSetType          != DIMSE_DATASET_NULL;
+    case DIMSE_N_GET_RSP:          return msg.msg.NGetRSP.DataSetType         != DIMSE_DATASET_NULL;
+    case DIMSE_N_SET_RQ:           return msg.msg.NSetRQ.DataSetType          != DIMSE_DATASET_NULL;
+    case DIMSE_N_SET_RSP:          return msg.msg.NSetRSP.DataSetType         != DIMSE_DATASET_NULL;
+    case DIMSE_N_ACTION_RQ:        return msg.msg.NActionRQ.DataSetType       != DIMSE_DATASET_NULL;
+    case DIMSE_N_ACTION_RSP:       return msg.msg.NActionRSP.DataSetType      != DIMSE_DATASET_NULL;
+    case DIMSE_N_CREATE_RQ:        return msg.msg.NCreateRQ.DataSetType       != DIMSE_DATASET_NULL;
+    case DIMSE_N_CREATE_RSP:       return msg.msg.NCreateRSP.DataSetType      != DIMSE_DATASET_NULL;
+    case DIMSE_N_DELETE_RQ:        return msg.msg.NDeleteRQ.DataSetType       != DIMSE_DATASET_NULL;
+    case DIMSE_N_DELETE_RSP:       return msg.msg.NDeleteRSP.DataSetType      != DIMSE_DATASET_NULL;
 
     default:
         qDebug() << "Unhandled command field" << msg.CommandField;
@@ -363,14 +363,14 @@ void PrintSCP::handleClient()
     {
         T_DIMSE_Message rq;
         T_DIMSE_Message rsp;
-        T_ASC_PresentationContextID presID;
+        T_ASC_PresentationContextID presId;
         T_ASC_PresentationContextID upstreamPresId = 0;
         DcmDataset *rawCommandSet = nullptr;
         DcmDataset *statusDetail = nullptr;
         DcmDataset *rqDataset = nullptr;
         DcmDataset *rspDataset = nullptr;
 
-        cond = DIMSE_receiveCommand(assoc, DIMSE_BLOCKING, 0, &presID, &rq, &statusDetail, &rawCommandSet);
+        cond = DIMSE_receiveCommand(assoc, DIMSE_BLOCKING, 0, &presId, &rq, &statusDetail, &rawCommandSet);
 
         if (cond.bad())
         {
@@ -385,7 +385,7 @@ void PrintSCP::handleClient()
 
         if (isDatasetPresent(rq))
         {
-            cond = DIMSE_receiveDataSetInMemory(assoc, blockMode, timeout, &presID, &rqDataset, nullptr, nullptr);
+            cond = DIMSE_receiveDataSetInMemory(assoc, blockMode, timeout, &presId, &rqDataset, nullptr, nullptr);
             if (cond.bad())
             {
                 qDebug() << "DIMSE_receiveDataSetInMemory" << QString::fromLocal8Bit(cond.text());
@@ -397,7 +397,7 @@ void PrintSCP::handleClient()
 
         if (upstream)
         {
-            cond = DIMSE_sendMessageUsingMemoryData(upstream, presID, &rq, statusDetail, rqDataset, nullptr, nullptr, &rawCommandSet);
+            cond = DIMSE_sendMessageUsingMemoryData(upstream, upstreamPresId, &rq, statusDetail, rqDataset, nullptr, nullptr, &rawCommandSet);
             dump("rawCommandSet", rawCommandSet);
             delete rawCommandSet;
             rawCommandSet = nullptr;
@@ -494,7 +494,7 @@ void PrintSCP::handleClient()
         rqDataset = nullptr;
 
         dumpOut(rsp, rspDataset);
-        cond = DIMSE_sendMessageUsingMemoryData(assoc, presID, &rsp, statusDetail, rspDataset, nullptr, nullptr, &rawCommandSet);
+        cond = DIMSE_sendMessageUsingMemoryData(assoc, presId, &rsp, statusDetail, rspDataset, nullptr, nullptr, &rawCommandSet);
         dump("rawCommandSet", rawCommandSet);
         delete rawCommandSet;
         rawCommandSet = nullptr;
@@ -689,6 +689,11 @@ OFCondition PrintSCP::handleNDelete(T_DIMSE_Message& rq, DcmDataset *, T_DIMSE_M
         // BFB N-DELETE
         filmBoxNDelete(rq, rsp);
     }
+    else if (sopClass == UID_PresentationLUTSOPClass)
+    {
+        // P-LUT N-DELETE
+        presentationLUTNDelete(rq, rsp);
+    }
     else
     {
         qDebug() << "N-DELETE unsupported for SOP class '" << sopClass << "'";
@@ -724,8 +729,6 @@ static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag
         break;
     }
 
-    //TODO: implement other types then strings
-    //
     qDebug() << "VR" << tag.getVRName() << "not implemented";
     return EC_IllegalParameter;
 }
@@ -831,29 +834,24 @@ void PrintSCP::filmSessionNCreate(DcmDataset *, T_DIMSE_Message& rsp, DcmDataset
 
 void PrintSCP::filmBoxNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset)
 {
-    if (!filmSessionUID.isEmpty())
+    rsp.msg.NCreateRSP.DataSetType = DIMSE_DATASET_PRESENT;
+    rspDataset = rqDataset? new DcmDataset(*rqDataset): new DcmDataset;
+    auto dseq = new DcmSequenceOfItems(DCM_ReferencedImageBoxSequence);
+    auto ditem = new DcmItem();
+    ditem->putAndInsertString(DCM_ReferencedSOPClassUID, UID_BasicGrayscaleImageBoxSOPClass);
+    char uid[100];
+    ditem->putAndInsertString(DCM_ReferencedSOPInstanceUID, dcmGenerateUniqueIdentifier(uid, SITE_INSTANCE_UID_ROOT));
+    dseq->insert(ditem);
+    rspDataset->insert(dseq);
+}
+
+void PrintSCP::presentationLUTNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDataset *& rspDataset)
+{
+    if (rqDataset)
     {
         rsp.msg.NCreateRSP.DataSetType = DIMSE_DATASET_PRESENT;
         rspDataset = (DcmDataset*)rqDataset->clone();
-        auto dseq = new DcmSequenceOfItems(DCM_ReferencedImageBoxSequence);
-        auto ditem = new DcmItem();
-        ditem->putAndInsertString(DCM_ReferencedSOPClassUID, UID_BasicGrayscaleImageBoxSOPClass);
-        char uid[100];
-        ditem->putAndInsertString(DCM_ReferencedSOPInstanceUID, dcmGenerateUniqueIdentifier(uid, SITE_INSTANCE_UID_ROOT));
-        dseq->insert(ditem);
-        rspDataset->insert(dseq);
     }
-    else
-    {
-        // no film session, refuse n-create
-        qDebug() << "cannot create film box without film session.";
-        rsp.msg.NCreateRSP.DimseStatus = STATUS_N_InvalidObjectInstance;
-        rsp.msg.NCreateRSP.opts = 0;  // don't include affected SOP instance UID
-    }
-}
-
-void PrintSCP::presentationLUTNCreate(DcmDataset *, T_DIMSE_Message&, DcmDataset *&)
-{
 }
 
 void PrintSCP::filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp)
@@ -874,6 +872,10 @@ void PrintSCP::filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp)
 }
 
 void PrintSCP::filmBoxNDelete(T_DIMSE_Message&, T_DIMSE_Message&)
+{
+}
+
+void PrintSCP::presentationLUTNDelete(T_DIMSE_Message&, T_DIMSE_Message&)
 {
 }
 
@@ -1072,14 +1074,14 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
 
     while (reply->isRunning() && (timeout <= 0 || timeout > (QDateTime::currentMSecsSinceEpoch() - start) / 1000))
     {
-        qApp->processEvents(QEventLoop::AllEvents, 1000);
+        qApp->processEvents(QEventLoop::AllEvents, 100);
     }
 
     if (reply->isRunning())
     {
         qDebug() << "Web query request timeout, aborting";
         reply->abort();
-        qApp->processEvents(QEventLoop::AllEvents, 1000);
+        qApp->processEvents(QEventLoop::AllEvents, 100);
         ++error;
     }
 
@@ -1090,6 +1092,11 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     {
         qDebug() << reply->error() << reply->errorString()
                  << responseContentType << QString::fromUtf8(response);
+    }
+
+    if (reply->error())
+    {
+        ++error;
     }
 
     if (responseContentType.endsWith("xml"))
@@ -1105,22 +1112,35 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     else
     {
         qDebug() << "response content type" << responseContentType << "not supported";
+        ++error;
     }
 
-    for (auto i = ret.constBegin(); i != ret.constEnd(); ++i)
+    if (error)
     {
-        DcmTag tag;
-        if (DcmTag::findTagFromName(i.key().toUtf8(), tag).bad())
+        // Reset the patient name & id in case of error
+        //
+        sessionDataset->putAndInsertString(DCM_PatientID,   "0", true);
+        sessionDataset->putAndInsertString(DCM_PatientName, "^", true);
+    }
+    else
+    {
+        for (auto i = ret.constBegin(); i != ret.constEnd(); ++i)
         {
-            qDebug() << "Unknown DCM tag" << i.key();
-        }
-        else
-        {
-            auto str = translateToLatin(i.value().toString());
-            qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
-            sessionDataset->putAndInsertString(tag, str.toUtf8());
+            DcmTag tag;
+            if (DcmTag::findTagFromName(i.key().toUtf8(), tag).bad())
+            {
+                qDebug() << "Unknown DCM tag" << i.key();
+            }
+            else
+            {
+                auto str = translateToLatin(i.value().toString());
+                qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
+                putAndInsertVariant(sessionDataset, tag, str);
+            }
         }
     }
+
+    reply->deleteLater();
 }
 
 void PrintSCP::insertTags(QVariantMap &queryParams, DicomImage *di, QSettings& settings)

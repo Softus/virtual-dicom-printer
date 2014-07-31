@@ -167,13 +167,19 @@ private:
      *  @param rq request message
      *  @param rsp response message, already initialized
      */
-    void filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message &rsp);
+    void filmSessionNDelete(T_DIMSE_Message &rq, T_DIMSE_Message &rsp);
 
     /** implements the N-DELETE operation for the Basic Film Box SOP Class.
      *  @param rq request message
      *  @param rsp response message, already initialized
      */
     void filmBoxNDelete(T_DIMSE_Message &rq, T_DIMSE_Message &rsp);
+
+    /** implements the N-DELETE operation for the Presentation LUT SOP Class.
+     *  @param rq request message
+     *  @param rsp response message, already initialized
+     */
+    void presentationLUTNDelete(T_DIMSE_Message &rq, T_DIMSE_Message &rsp);
 
     /** stores image to the storage servers.
      *  @param rqDataset request dataset, may not be NULL
