@@ -839,11 +839,28 @@ void PrintSCP::filmBoxNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rsp, DcmDa
     rsp.msg.NCreateRSP.DataSetType = DIMSE_DATASET_PRESENT;
     rspDataset = rqDataset? new DcmDataset(*rqDataset): new DcmDataset;
     auto dseq = new DcmSequenceOfItems(DCM_ReferencedImageBoxSequence);
-    auto ditem = new DcmItem();
-    ditem->putAndInsertString(DCM_ReferencedSOPClassUID, UID_BasicGrayscaleImageBoxSOPClass);
     char uid[100];
-    ditem->putAndInsertString(DCM_ReferencedSOPInstanceUID, dcmGenerateUniqueIdentifier(uid, SITE_INSTANCE_UID_ROOT));
-    dseq->insert(ditem);
+    OFString fmt;
+    unsigned long count = 1;
+
+    if (rspDataset->findAndGetOFStringArray(DCM_ImageDisplayFormat, fmt).good() && fmt.substr(0,9) == "STANDARD\\")
+    {
+        unsigned long rows = 0;
+        unsigned long cols = 0;
+        if (2 == sscanf(fmt.c_str() + 9, "%lu,%lu", &cols, &rows))
+        {
+            count = rows * cols;
+        }
+    }
+
+    while (count-- > 0)
+    {
+        auto ditem = new DcmItem();
+        ditem->putAndInsertString(DCM_ReferencedSOPClassUID, UID_BasicGrayscaleImageBoxSOPClass);
+        ditem->putAndInsertString(DCM_ReferencedSOPInstanceUID, dcmGenerateUniqueIdentifier(uid, SITE_INSTANCE_UID_ROOT));
+        dseq->insert(ditem);
+    }
+
     rspDataset->insert(dseq);
 }
 
@@ -953,7 +970,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
         }
     }
 
-    if (settings.value("debug").toBool())
+    if (settings.value("debug").toInt() > 1)
     {
         DcmFileFormat ff(rqDataset);
         cond = ff.saveFile(QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz").append(".dcm").toUtf8(),
