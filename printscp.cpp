@@ -406,7 +406,8 @@ void PrintSCP::handleClient()
 
             if (cond.bad())
             {
-                qDebug() << "DIMSE_sendMessageUsingMemoryData(upstream) failed" << QString::fromLocal8Bit(cond.text());
+                qDebug() << "DIMSE_sendMessageUsingMemoryData(upstream) failed" << QString::fromLocal8Bit(cond.text())
+                         << "presId" << presId;
                 break;
             }
 
@@ -473,19 +474,20 @@ void PrintSCP::handleClient()
             studyInstanceUID = rq.msg.NSetRQ.RequestedSOPInstanceUID;
             storeImage(rqDataset);
         }
-        else if (DIMSE_N_CREATE_RQ == rq.CommandField)
-        {
-            if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmSessionSOPClass))
-            {
-                filmSessionUID = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
-            }
-            else if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmBoxSOPClass))
-            {
-                seriesInstanceUID  = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
-            }
-        }
         else
         {
+            if (DIMSE_N_CREATE_RQ == rq.CommandField)
+            {
+                if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmSessionSOPClass))
+                {
+                    filmSessionUID = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
+                }
+                else if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmBoxSOPClass))
+                {
+                    seriesInstanceUID  = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
+                }
+            }
+
             copyItems(rqDataset, sessionDataset);
             copyItems(rspDataset, sessionDataset);
         }
