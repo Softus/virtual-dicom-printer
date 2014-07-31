@@ -397,7 +397,7 @@ void PrintSCP::handleClient()
 
         if (upstream)
         {
-            cond = DIMSE_sendMessageUsingMemoryData(upstream, upstreamPresId, &rq, statusDetail, rqDataset, nullptr, nullptr, &rawCommandSet);
+            cond = DIMSE_sendMessageUsingMemoryData(upstream, presId, &rq, statusDetail, rqDataset, nullptr, nullptr, &rawCommandSet);
             dump("rawCommandSet", rawCommandSet);
             delete rawCommandSet;
             rawCommandSet = nullptr;
