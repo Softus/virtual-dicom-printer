@@ -1054,7 +1054,7 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     {
         // These parameters are hardcoded
         //
-        queryParams["study-instance-uid"] = SOPInstanceUID;
+        queryParams["study-instance-uid"] = filmSessionUID;
         queryParams["medical-service-date"] = QDate::currentDate().toString("yyyy-MM-dd");
 
         data = writeXmlRequest("save-hardcopy-grayscale-image-request", queryParams);
@@ -1064,7 +1064,7 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     {
         // These parameters are hardcoded
         //
-        queryParams["studyInstanceUID"] = SOPInstanceUID;
+        queryParams["studyInstanceUID"] = filmSessionUID;
         queryParams["medicalServiceDate"] = QDate::currentDate().toString("yyyy-MM-dd");
 
         data = QJsonDocument(QJsonObject::fromVariantMap(queryParams)).toJson();
