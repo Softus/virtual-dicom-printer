@@ -211,8 +211,8 @@ private:
     // basic film session instance
     //
     QString filmSessionUID;
-    QString SOPInstanceUID;
     QString seriesInstanceUID;
+    QString SOPInstanceUID;
 
     // the dataset to log all session attributes
     //

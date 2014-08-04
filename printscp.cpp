@@ -921,21 +921,6 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
         delete item;
     }
 
-    rqDataset->putAndInsertString(DCM_SpecificCharacterSet, "ISO_IR 192"); // UTF-8
-
-    rqDataset->putAndInsertString(DCM_SOPInstanceUID,    SOPInstanceUID.toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_StudyInstanceUID,  filmSessionUID.toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_SeriesInstanceUID, seriesInstanceUID.toUtf8(), false);
-
-    auto now = QDateTime::currentDateTime();
-    rqDataset->putAndInsertString(DCM_InstanceCreationDate, now.toString("yyyyMMdd").toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_InstanceCreationTime, now.toString("HHmmss").toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_StudyDate, now.toString("yyyyMMdd").toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_StudyTime, now.toString("HHmmss").toUtf8(), false);
-
-    rqDataset->putAndInsertString(DCM_Manufacturer, ORGANIZATION_FULL_NAME, false);
-    rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME, false);
-
     QSettings settings;
     QVariantMap queryParams;
     DicomImage di(rqDataset, rqDataset->getOriginalXfer());
@@ -959,6 +944,21 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
     webQuery(queryParams);
 
     copyItems(sessionDataset, rqDataset);
+
+    rqDataset->putAndInsertString(DCM_SpecificCharacterSet, "ISO_IR 192"); // UTF-8
+
+    rqDataset->putAndInsertString(DCM_StudyInstanceUID,  filmSessionUID.toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_SeriesInstanceUID, seriesInstanceUID.toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_SOPInstanceUID,    SOPInstanceUID.toUtf8(), false);
+
+    auto now = QDateTime::currentDateTime();
+    rqDataset->putAndInsertString(DCM_InstanceCreationDate, now.toString("yyyyMMdd").toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_InstanceCreationTime, now.toString("HHmmss").toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_StudyDate, now.toString("yyyyMMdd").toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_StudyTime, now.toString("HHmmss").toUtf8(), false);
+
+    rqDataset->putAndInsertString(DCM_Manufacturer, ORGANIZATION_FULL_NAME, false);
+    rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME, false);
 
     foreach (auto server, settings.value("storage-servers").toStringList())
     {
