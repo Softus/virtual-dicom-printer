@@ -135,6 +135,7 @@ PrintSCP::PrintSCP(QObject *parent)
     : QObject(parent)
     , blockMode(DIMSE_BLOCKING)
     , timeout(DEFAULT_TIMEOUT)
+    , forceUniqueSeries(false)
     , sessionDataset(nullptr)
     , upstreamNet(nullptr)
     , assoc(nullptr)
@@ -194,7 +195,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
     }
     else
     {
-        printer = assoc->params->DULparams.calledAPTitle;
+        printer = QString::fromUtf8(assoc->params->DULparams.calledAPTitle);
 
         qDebug() << "Client association received (max send PDV: "
              << assoc->sendPDVLength << ")"
@@ -243,6 +244,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         auto printerAETitle  = settings.value("upstream-aetitle").toString();
         auto printerAddress  = settings.value("upstream-address").toString();
         auto calleeAETitle   = settings.value("aetitle", assoc->params->DULparams.callingAPTitle).toString().toUpper();
+        forceUniqueSeries    = settings.value("force-unique-series").toBool();
         settings.endGroup();
 
         if (printerAETitle.isEmpty())
@@ -471,7 +473,13 @@ void PrintSCP::handleClient()
         if (DIMSE_N_SET_RQ == rq.CommandField
            && QString(rq.msg.NSetRQ.RequestedSOPClassUID).startsWith(UID_BasicGrayscaleImageBoxSOPClass))
         {
-            SOPInstanceUID = rq.msg.NSetRQ.RequestedSOPInstanceUID;
+            SOPInstanceUID = QString::fromUtf8(rq.msg.NSetRQ.RequestedSOPInstanceUID);
+            if (forceUniqueSeries)
+            {
+                char uid[100] = {0};
+                dcmGenerateUniqueIdentifier(uid,  SITE_SERIES_UID_ROOT);
+                seriesInstanceUID = QString::fromUtf8(uid);
+            }
             storeImage(rqDataset);
         }
         else
@@ -480,11 +488,11 @@ void PrintSCP::handleClient()
             {
                 if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmSessionSOPClass))
                 {
-                    filmSessionUID = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
+                    filmSessionUID = QString::fromUtf8(rsp.msg.NCreateRSP.AffectedSOPInstanceUID);
                 }
                 else if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmBoxSOPClass))
                 {
-                    seriesInstanceUID  = rsp.msg.NCreateRSP.AffectedSOPInstanceUID;
+                    seriesInstanceUID  = QString::fromUtf8(rsp.msg.NCreateRSP.AffectedSOPInstanceUID);
                 }
             }
 

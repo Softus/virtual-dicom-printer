@@ -214,6 +214,10 @@ private:
     QString seriesInstanceUID;
     QString SOPInstanceUID;
 
+    // Workaround for some spooler "optimizatins"
+    //
+    bool forceUniqueSeries;
+
     // the dataset to log all session attributes
     //
     DcmDataset* sessionDataset;
