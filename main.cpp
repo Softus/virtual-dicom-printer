@@ -16,9 +16,18 @@
 
 #include "product.h"
 #include "printscp.h"
+#include "storescp.h"
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
+
+#define HAVE_CONFIG_H
+#include <dcmtk/config/osconfig.h> /* make sure OS specific configuration is included first */
+#include <dcmtk/dcmdata/dcdeftag.h>
+#include <dcmtk/dcmdata/dcfilefo.h>
+
+#define DEFAULT_SPOOL_INTERVAL 1800
 
 static void cleanChildren()
 {
@@ -155,6 +164,99 @@ int main(int argc, char *argv[])
             printSCP.handleClient();
 #endif
         }
+
+        // Retry failed prints
+        //
+        auto spoolPath = settings.value("spool-path").toString();
+        if (!spoolPath.isEmpty())
+        {
+            if (QDateTime::currentDateTime() > settings.value("next-spool-ts").toDateTime())
+            {
+                auto spoolInterval = settings.value("spool-interval-in-seconds", DEFAULT_SPOOL_INTERVAL).toInt();
+                settings.setValue("next-spool-ts", QDateTime::currentDateTime().addSecs(spoolInterval));
+
+                // Retry failed web queries
+                //
+                Q_FOREACH (auto file, QDir(spoolPath).entryInfoList(QDir::Files))
+                {
+                    DcmFileFormat dcmFF;
+                    auto filePath = file.absoluteFilePath();
+                    cond = dcmFF.loadFile(filePath.toLocal8Bit());
+                    if (cond.bad())
+                    {
+                        qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());
+                        continue;
+                    }
+
+                    const char* printer = nullptr;
+                    dcmFF.getDataset()->findAndGetString(DCM_RETIRED_PrintQueueID, printer);
+                    PrintSCP printSCP(nullptr, QString::fromUtf8(printer));
+
+                    if (printSCP.webQuery(dcmFF.getDataset()))
+                    {
+                        foreach (auto server, settings.value("storage-servers").toStringList())
+                        {
+                            StoreSCP sscp(server);
+                            const char* SOPInstanceUID = nullptr;
+                            dcmFF.getDataset()->findAndGetString(DCM_SOPInstanceUID, SOPInstanceUID);
+
+                            cond = sscp.sendToServer(dcmFF.getDataset(), SOPInstanceUID);
+                            if (cond.bad())
+                            {
+                                // The Web query secceded, but store failed.
+                                // Move the file down to the queue.
+                                // At this point, we will copy the file many times,
+                                // for each failed store server.
+                                //
+                                auto newName = spoolPath.append(QDir::separator())
+                                        .append(server).append(QDir::separator())
+                                        .append(file.fileName());
+
+                                if (!QFile::copy(filePath, newName))
+                                {
+                                    qDebug() << "Failed to copy file " << filePath
+                                             << "to" << newName << ": " << strerror(errno);
+                                }
+                            }
+                        }
+
+                        if (!QFile::remove(filePath))
+                        {
+                            qDebug() << "Failed to remove file " << filePath << ": " << strerror(errno);
+                        }
+                    }
+                }
+
+                foreach (auto server, settings.value("storage-servers").toStringList())
+                {
+                    StoreSCP sscp(server);
+                    Q_FOREACH (auto file, QDir(spoolPath.append(QDir::separator()).append(server)).entryInfoList(QDir::Files))
+                    {
+                        DcmFileFormat dcmFF;
+                        auto filePath = file.absoluteFilePath();
+                        cond = dcmFF.loadFile(filePath.toLocal8Bit());
+                        if (cond.bad())
+                        {
+                            qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());
+                            continue;
+                        }
+
+                        const char* SOPInstanceUID = nullptr;
+                        dcmFF.getDataset()->findAndGetString(DCM_SOPInstanceUID, SOPInstanceUID);
+
+                        cond = sscp.sendToServer(dcmFF.getDataset(), SOPInstanceUID);
+                        if (cond.good())
+                        {
+                            if (!QFile::remove(filePath))
+                            {
+                                qDebug() << "Failed to remove file " << filePath << ": " << strerror(errno);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     cleanChildren();

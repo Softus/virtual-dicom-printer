@@ -27,6 +27,7 @@ StoreSCP::StoreSCP(const QString& server, QObject *parent)
     , server(server)
     , blockMode(DIMSE_BLOCKING)
     , timeout(0)
+    , net(nullptr)
     , assoc(nullptr)
 {
     QSettings settings;

@@ -22,6 +22,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -43,6 +44,172 @@
 #include <dcmtk/dcmdata/dcvrui.h>
 #include <dcmtk/dcmpstat/dvpsdef.h>     /* for constants */
 #include <dcmtk/dcmimgle/dcmimage.h>    /* for DicomImage */
+
+static QString fixFileName(QString str)
+{
+    if (!str.isNull())
+    {
+        for (int i = 0; i < str.length(); ++i)
+        {
+            switch (str[i].unicode())
+            {
+            case '<':
+            case '>':
+            case ':':
+            case '\"':
+            case '/':
+            case '\\':
+            case '|':
+            case '?':
+            case '*':
+                str[i] = '_';
+                break;
+            }
+        }
+    }
+    return str;
+}
+
+static bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
+{
+    if (!QDir::root().mkpath(spoolPath))
+    {
+        qDebug() << "Failed to create folder " << spoolPath << ": " << strerror(errno);
+    }
+
+    const char* patientId = nullptr;
+    rqDataset->findAndGetString(DCM_PatientID, patientId);
+    const char* patientName = nullptr;
+    rqDataset->findAndGetString(DCM_PatientName, patientName);
+
+    QString fileName = QString(spoolPath)
+            .append(QDir::separator()).append(fixFileName(QString::fromUtf8(patientName)))
+            .append('_').append(fixFileName(QString::fromUtf8(patientId))).append(".dcm");
+
+    if (QFile::exists(fileName))
+    {
+        int cnt = 1;
+        QString alt;
+        do
+        {
+            alt = QString(fileName).append(" (").append(QString::number(++cnt)).append(')');
+        }
+        while (QFile::exists(alt));
+        fileName = alt;
+    }
+
+    DcmFileFormat ff(rqDataset);
+    OFCondition cond = ff.saveFile(fileName.toUtf8(),
+        EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
+
+    if (cond.bad())
+    {
+        qDebug() << "Failed to save " << fileName << ": " << QString::fromLocal8Bit(cond.text());
+    }
+
+    return cond.good();
+}
+
+static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag, const QVariant& value)
+{
+    if (tag.getVR().isaString())
+    {
+        return rspDataset->putAndInsertString(tag, value.toString().toUtf8());
+    }
+
+    switch (tag.getEVR())
+    {
+    case EVR_FL:
+    case EVR_OF:
+        return rspDataset->putAndInsertFloat32(tag, value.toFloat());
+    case EVR_FD:
+        return rspDataset->putAndInsertFloat64(tag, value.toDouble());
+    case EVR_SL:
+        return rspDataset->putAndInsertSint32(tag, value.toInt());
+    case EVR_UL:
+        return rspDataset->putAndInsertUint32(tag, value.toUInt());
+    case EVR_SS:
+        return rspDataset->putAndInsertSint16(tag, (Sint16)value.toInt());
+    case EVR_US:
+        return rspDataset->putAndInsertUint16(tag, (Uint16)value.toUInt());
+    default:
+        break;
+    }
+
+    qDebug() << "VR" << tag.getVRName() << "not implemented";
+    return EC_IllegalParameter;
+}
+
+static OFCondition findAndGetVariant(DcmDataset* rspDataset, const DcmTag& tag, QVariant& value)
+{
+    OFCondition cond;
+    if (tag.getVR().isaString())
+    {
+        const char* str = nullptr;
+        cond = rspDataset->findAndGetString(tag, str);
+        if (cond.good())
+        {
+            value.setValue(QString::fromUtf8(str));
+        }
+    }
+    else
+    {
+        switch (tag.getEVR())
+        {
+        case EVR_FL:
+        case EVR_OF:
+            {
+                float f = 0.0f;
+                cond = rspDataset->findAndGetFloat32(tag, f);
+                if (cond.good()) { value.setValue(f); }
+                break;
+            }
+        case EVR_FD:
+            {
+                double d = 0.0;
+                cond = rspDataset->findAndGetFloat64(tag, d);
+                if (cond.good()) { value.setValue(d); }
+                break;
+            }
+        case EVR_SL:
+            {
+                Sint32 i = 0;
+                cond = rspDataset->findAndGetSint32(tag, i);
+                if (cond.good()) { value.setValue(i); }
+                break;
+            }
+        case EVR_UL:
+            {
+                Uint32 u = 0;
+                cond = rspDataset->findAndGetUint32(tag, u);
+                if (cond.good()) { value.setValue(u); }
+                break;
+            }
+        case EVR_SS:
+            {
+                Sint16 i = 0;
+                cond = rspDataset->findAndGetSint16(tag, i);
+                if (cond.good()) { value.setValue(i); }
+                break;
+            }
+        case EVR_US:
+            {
+                Uint16 u = 0;
+                cond = rspDataset->findAndGetUint16(tag, u);
+                if (cond.good()) { value.setValue(u); }
+                break;
+            }
+        default:
+            {
+                cond = EC_IllegalParameter;
+                break;
+            }
+        }
+    }
+
+    qDebug() << "VR" << tag.getVRName() << "not implemented";
+    return cond;
+}
 
 static bool isDatasetPresent(T_DIMSE_Message &msg)
 {
@@ -131,18 +298,22 @@ static void copyItems(DcmItem* src, DcmItem *dst)
     }
 }
 
-PrintSCP::PrintSCP(QObject *parent)
+PrintSCP::PrintSCP(QObject *parent, const QString &printer)
     : QObject(parent)
     , blockMode(DIMSE_BLOCKING)
     , timeout(DEFAULT_TIMEOUT)
     , forceUniqueSeries(false)
     , sessionDataset(nullptr)
+    , printer(printer)
     , upstreamNet(nullptr)
     , assoc(nullptr)
     , upstream(nullptr)
 {
     QSettings settings;
     auto ocrLang = settings.value("ocr-lang", DEFAULT_OCR_LANG).toString();
+
+    // Set locale to "C" to avoid tesseract crash. Then revert to the system default
+    //
     auto oldLocale = setlocale(LC_NUMERIC, "C");
     tess.Init(nullptr, ocrLang.toUtf8(), tesseract::OEM_TESSERACT_ONLY);
     setlocale(LC_NUMERIC, oldLocale);
@@ -360,7 +531,8 @@ void PrintSCP::handleClient()
     OFCondition cond = ASC_acknowledgeAssociation(assoc, &associatePDU, &associatePDUlength);
     delete[] (char *)associatePDU;
 
-    /* do real work */
+    // Do  the real work
+    //
     while (cond.good())
     {
         T_DIMSE_Message rq;
@@ -713,36 +885,6 @@ OFCondition PrintSCP::handleNDelete(T_DIMSE_Message& rq, DcmDataset *, T_DIMSE_M
     return cond;
 }
 
-static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag, const QVariant& value)
-{
-    if (tag.getVR().isaString())
-    {
-        return rspDataset->putAndInsertString(tag, value.toString().toUtf8());
-    }
-
-    switch (tag.getEVR())
-    {
-    case EVR_FL:
-    case EVR_OF:
-        return rspDataset->putAndInsertFloat32(tag, value.toFloat());
-    case EVR_FD:
-        return rspDataset->putAndInsertFloat64(tag, value.toDouble());
-    case EVR_SL:
-        return rspDataset->putAndInsertSint32(tag, value.toInt());
-    case EVR_UL:
-        return rspDataset->putAndInsertUint32(tag, value.toUInt());
-    case EVR_SS:
-        return rspDataset->putAndInsertSint16(tag, (Sint16)value.toInt());
-    case EVR_US:
-        return rspDataset->putAndInsertUint16(tag, (Uint16)value.toUInt());
-    default:
-        break;
-    }
-
-    qDebug() << "VR" << tag.getVRName() << "not implemented";
-    return EC_IllegalParameter;
-}
-
 void PrintSCP::printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset *& rspDataset)
 {
     QString printerInstance(UID_PrinterSOPInstance);
@@ -929,28 +1071,6 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
         delete item;
     }
 
-    QSettings settings;
-    QVariantMap queryParams;
-    DicomImage di(rqDataset, rqDataset->getOriginalXfer());
-    void *data;
-    if (di.createJavaAWTBitmap(data, 0, 32) && data)
-    {
-        tess.SetImage((const unsigned char*)data, di.getWidth(), di.getHeight(), 4, 4 * di.getWidth());
-
-        // Global tags
-        //
-        insertTags(queryParams, &di, settings);
-
-        // This printer tags
-        //
-        settings.beginGroup(printer);
-        insertTags(queryParams, &di, settings);
-        settings.endGroup();
-        delete[] (Uint32*)data;
-    }
-
-    webQuery(queryParams);
-
     copyItems(sessionDataset, rqDataset);
 
     rqDataset->putAndInsertString(DCM_SpecificCharacterSet, "ISO_IR 192"); // UTF-8
@@ -968,24 +1088,36 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
     rqDataset->putAndInsertString(DCM_Manufacturer, ORGANIZATION_FULL_NAME, false);
     rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME, false);
 
-    foreach (auto server, settings.value("storage-servers").toStringList())
+    QSettings settings;
+    auto spoolPath = settings.value("spool-path").toString();
+
+    if (!webQuery(rqDataset))
     {
-        StoreSCP sscp(server);
-        cond = sscp.sendToServer(rqDataset, SOPInstanceUID.toUtf8());
-        if (cond.bad())
+        if (!spoolPath.isEmpty())
         {
-            qDebug() << "Failed to store to" << server << QString::fromLocal8Bit(cond.text());
+            rqDataset->putAndInsertString(DCM_RETIRED_PrintQueueID, printer.toUtf8());
+            saveToDisk(spoolPath, rqDataset);
         }
     }
-
-    if (settings.value("debug").toInt() > 1)
+    else
     {
-        DcmFileFormat ff(rqDataset);
-        cond = ff.saveFile(QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz").append(".dcm").toUtf8(),
-                           EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
-        if (cond.bad())
+        if (settings.value("debug").toInt() > 1)
         {
-            qDebug() << "Failed to save rq.dcm" << QString::fromLocal8Bit(cond.text());
+            saveToDisk(".", rqDataset);
+        }
+
+        foreach (auto server, settings.value("storage-servers").toStringList())
+        {
+            StoreSCP sscp(server);
+            cond = sscp.sendToServer(rqDataset, SOPInstanceUID.toUtf8());
+            if (cond.bad())
+            {
+                qDebug() << "Failed to store to" << server << QString::fromLocal8Bit(cond.text());
+                if (!spoolPath.isEmpty())
+                {
+                    saveToDisk(spoolPath.append(QDir::separator()).append(server), rqDataset);
+                }
+            }
         }
     }
 }
@@ -1028,9 +1160,10 @@ static QVariantMap readXmlResponse(const QByteArray& data)
     return map;
 }
 
-void PrintSCP::webQuery(QVariantMap &queryParams)
+bool PrintSCP::webQuery(DcmDataset *rqDataset)
 {
     QSettings settings;
+    QVariantMap queryParams;
     QVariantMap ret;
 
     settings.beginGroup("query");
@@ -1038,20 +1171,61 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     auto userName    = settings.value("username").toString();
     auto password    = settings.value("password").toString();
     auto contendType = settings.value("content-type", DEFAULT_CONTENT_TYPE).toString();
+    auto extraParams = settings.value("query-parameters").toStringList();
     settings.endGroup();
 
     settings.beginGroup(printer);
     settings.beginGroup("query");
-    url         = settings.value("url",          url).toUrl();
-    userName    = settings.value("username",     userName).toString();
-    password    = settings.value("password",     password).toString();
-    contendType = settings.value("content-type", contendType).toString();
+    url         = settings.value("url",              url).toUrl();
+    userName    = settings.value("username",         userName).toString();
+    password    = settings.value("password",         password).toString();
+    contendType = settings.value("content-type",     contendType).toString();
+    extraParams = settings.value("query-parameters", extraParams).toStringList();
     settings.endGroup();
     settings.endGroup();
 
     if (url.isEmpty())
     {
-        return;
+        return true;
+    }
+
+    DicomImage di(rqDataset, rqDataset->getOriginalXfer());
+    void *img = nullptr;
+
+    if (di.createJavaAWTBitmap(img, 0, 32) && img)
+    {
+        tess.SetImage((const unsigned char*)img, di.getWidth(), di.getHeight(), 4, 4 * di.getWidth());
+
+        // Global tags
+        //
+        insertTags(rqDataset, queryParams, &di, settings);
+
+        // This printer tags
+        //
+        settings.beginGroup(printer);
+        insertTags(rqDataset, queryParams, &di, settings);
+        settings.endGroup();
+        delete[] (Uint32*)img;
+    }
+
+    Q_FOREACH (auto extraParam, extraParams)
+    {
+        auto parts = extraParam.split("=:");
+        QVariant value;
+
+        if (parts.size() > 1)
+        {
+            DcmTag tag;
+            if (DcmTag::findTagFromName(parts[1].toUtf8(), tag).bad())
+            {
+                qDebug() << "Unknown DCM tag" << parts[1];
+            }
+            else if (findAndGetVariant(rqDataset, tag, value).bad())
+            {
+                qDebug() << "Failed te retrieve DCM tag" << tag.getTagName() << "from the dataset";
+            }
+        }
+        queryParams[parts[0]] = value;
     }
 
     bool error = false;
@@ -1143,8 +1317,8 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
     {
         // Reset the patient name & id in case of error
         //
-        sessionDataset->putAndInsertString(DCM_PatientID,   "0", true);
-        sessionDataset->putAndInsertString(DCM_PatientName, "^", true);
+        rqDataset->putAndInsertString(DCM_PatientID,   "0", true);
+        rqDataset->putAndInsertString(DCM_PatientName, "^", true);
     }
     else
     {
@@ -1163,15 +1337,16 @@ void PrintSCP::webQuery(QVariantMap &queryParams)
                 //
                 auto str = translateToLatin(i.value().toString());
                 qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
-                putAndInsertVariant(sessionDataset, tag, str);
+                putAndInsertVariant(rqDataset, tag, str);
             }
         }
     }
 
     reply->deleteLater();
+    return !error;
 }
 
-void PrintSCP::insertTags(QVariantMap &queryParams, DicomImage *di, QSettings& settings)
+void PrintSCP::insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, DicomImage *di, QSettings& settings)
 {
     auto tagCount = settings.beginReadArray("tag");
     QRect prevRect;
@@ -1240,7 +1415,7 @@ void PrintSCP::insertTags(QVariantMap &queryParams, DicomImage *di, QSettings& s
             else
             {
                 qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str << param;
-                sessionDataset->putAndInsertString(tag, str.toUtf8());
+                rqDataset->putAndInsertString(tag, str.toUtf8());
             }
         }
     }

@@ -40,7 +40,7 @@ class PrintSCP : public QObject
     Q_OBJECT
 
 public:
-    explicit PrintSCP(QObject *parent = 0);
+    PrintSCP(QObject *parent = 0, const QString& printer = QString());
     ~PrintSCP();
 
     /** performs association negotiation for the Print SCP. Depending on the
@@ -64,6 +64,11 @@ public:
     /** destroys the association managed by this object.
      */
     void dropAssociations();
+
+    /** Add attributes from the web service.
+     *  @param rqDataset request dataset, may not be NULL
+     */
+    bool webQuery(DcmDataset *rqDataset);
 
 private:
 
@@ -187,16 +192,12 @@ private:
     void storeImage(DcmDataset *rqDataset);
 
     /** Add attributes from the printer settings.
+     *  @param rqDataset request dataset, may not be NULL
      *  @param queryParams for the web service
      *  @param di image from dataset, may not be NULL
      *  @param settings to read attributes from
      */
-    void insertTags(QVariantMap &queryParams, DicomImage *di, QSettings &settings);
-
-    /** Add attributes from the web service.
-     *  @param queryParams for the web service
-     */
-    void webQuery(QVariantMap &queryParams);
+    void insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, DicomImage *di, QSettings &settings);
 
     /* class data */
 
