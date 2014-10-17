@@ -303,6 +303,7 @@ PrintSCP::PrintSCP(QObject *parent, const QString &printer)
     , blockMode(DIMSE_BLOCKING)
     , timeout(DEFAULT_TIMEOUT)
     , forceUniqueSeries(false)
+    , forceUniqueStudy(false)
     , sessionDataset(nullptr)
     , printer(printer)
     , upstreamNet(nullptr)
@@ -416,6 +417,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         auto printerAddress  = settings.value("upstream-address").toString();
         auto calleeAETitle   = settings.value("aetitle", assoc->params->DULparams.callingAPTitle).toString().toUpper();
         forceUniqueSeries    = settings.value("force-unique-series").toBool();
+        forceUniqueStudy     = settings.value("force-unique-study").toBool();
         settings.endGroup();
 
         if (printerAETitle.isEmpty())
@@ -646,12 +648,18 @@ void PrintSCP::handleClient()
            && QString(rq.msg.NSetRQ.RequestedSOPClassUID).startsWith(UID_BasicGrayscaleImageBoxSOPClass))
         {
             SOPInstanceUID = QString::fromUtf8(rq.msg.NSetRQ.RequestedSOPInstanceUID);
+            char uid[100] = {0};
+
+            if (forceUniqueStudy)
+            {
+                studyInstanceUID = QString::fromUtf8(dcmGenerateUniqueIdentifier(uid,  SITE_STUDY_UID_ROOT));
+            }
+
             if (forceUniqueSeries)
             {
-                char uid[100] = {0};
-                dcmGenerateUniqueIdentifier(uid,  SITE_SERIES_UID_ROOT);
-                seriesInstanceUID = QString::fromUtf8(uid);
+                seriesInstanceUID = QString::fromUtf8(dcmGenerateUniqueIdentifier(uid,  SITE_SERIES_UID_ROOT));
             }
+
             storeImage(rqDataset);
         }
         else
@@ -660,7 +668,7 @@ void PrintSCP::handleClient()
             {
                 if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmSessionSOPClass))
                 {
-                    filmSessionUID = QString::fromUtf8(rsp.msg.NCreateRSP.AffectedSOPInstanceUID);
+                    studyInstanceUID = QString::fromUtf8(rsp.msg.NCreateRSP.AffectedSOPInstanceUID);
                 }
                 else if (0 == strcmp(rq.msg.NCreateRQ.AffectedSOPClassUID, UID_BasicFilmBoxSOPClass))
                 {
@@ -975,7 +983,7 @@ void PrintSCP::printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset
 
 void PrintSCP::filmSessionNCreate(DcmDataset *, T_DIMSE_Message& rsp, DcmDataset *&)
 {
-    if (!filmSessionUID.isEmpty())
+    if (!studyInstanceUID.isEmpty())
     {
         // film session exists already, refuse n-create
         qDebug() << "cannot create two film sessions concurrently.";
@@ -1023,21 +1031,11 @@ void PrintSCP::presentationLUTNCreate(DcmDataset *rqDataset, T_DIMSE_Message& rs
     }
 }
 
-void PrintSCP::filmSessionNDelete(T_DIMSE_Message& rq, T_DIMSE_Message& rsp)
+void PrintSCP::filmSessionNDelete(T_DIMSE_Message&, T_DIMSE_Message&)
 {
-    if (filmSessionUID == rq.msg.NDeleteRQ.RequestedSOPInstanceUID)
-    {
-        filmSessionUID.clear();
-        SOPInstanceUID.clear();
-        seriesInstanceUID.clear();
-    }
-    else
-    {
-        // film session does not exist or wrong instance UID
-        //
-        qDebug() << "cannot delete film session with instance UID '" << rq.msg.NDeleteRQ.RequestedSOPInstanceUID << "': object does not exist.";
-        rsp.msg.NDeleteRSP.DimseStatus = STATUS_N_NoSuchObjectInstance;
-    }
+    studyInstanceUID.clear();
+    SOPInstanceUID.clear();
+    seriesInstanceUID.clear();
 }
 
 void PrintSCP::filmBoxNDelete(T_DIMSE_Message&, T_DIMSE_Message&)
@@ -1075,7 +1073,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
 
     rqDataset->putAndInsertString(DCM_SpecificCharacterSet, "ISO_IR 192"); // UTF-8
 
-    rqDataset->putAndInsertString(DCM_StudyInstanceUID,  filmSessionUID.toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_StudyInstanceUID,  studyInstanceUID.toUtf8(), false);
     rqDataset->putAndInsertString(DCM_SeriesInstanceUID, seriesInstanceUID.toUtf8(), false);
     rqDataset->putAndInsertString(DCM_SOPInstanceUID,    SOPInstanceUID.toUtf8(), false);
 
@@ -1236,7 +1234,7 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     {
         // These parameters are hardcoded
         //
-        queryParams["study-instance-uid"] = filmSessionUID;
+        queryParams["study-instance-uid"] = studyInstanceUID;
         queryParams["medical-service-date"] = QDate::currentDate().toString("yyyy-MM-dd");
 
         data = writeXmlRequest("save-hardcopy-grayscale-image-request", queryParams);
@@ -1246,7 +1244,7 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     {
         // These parameters are hardcoded
         //
-        queryParams["studyInstanceUID"] = filmSessionUID;
+        queryParams["studyInstanceUID"] = studyInstanceUID;
         queryParams["medicalServiceDate"] = QDate::currentDate().toString("yyyy-MM-dd");
 
         data = QJsonDocument(QJsonObject::fromVariantMap(queryParams)).toJson();

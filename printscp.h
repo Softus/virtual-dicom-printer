@@ -211,13 +211,14 @@ private:
 
     // basic film session instance
     //
-    QString filmSessionUID;
+    QString studyInstanceUID;
     QString seriesInstanceUID;
     QString SOPInstanceUID;
 
-    // Workaround for some spooler "optimizatins"
+    // Workarounds for some spooler "optimizatins"
     //
     bool forceUniqueSeries;
+    bool forceUniqueStudy;
 
     // the dataset to log all session attributes
     //
