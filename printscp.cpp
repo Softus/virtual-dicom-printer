@@ -112,11 +112,6 @@ static bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
 
 static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag, const QVariant& value)
 {
-    if (tag.getVR().isaString())
-    {
-        return rspDataset->putAndInsertString(tag, value.toString().toUtf8());
-    }
-
     switch (tag.getEVR())
     {
     case EVR_FL:
@@ -132,7 +127,17 @@ static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag
         return rspDataset->putAndInsertSint16(tag, (Sint16)value.toInt());
     case EVR_US:
         return rspDataset->putAndInsertUint16(tag, (Uint16)value.toUInt());
+    case EVR_DA:
+        return rspDataset->putAndInsertString(tag, value.toDate().toString("yyyyMMdd").toUtf8());
+    case EVR_DT:
+        return rspDataset->putAndInsertString(tag, value.toDateTime().toString("yyyyMMddHHmmss").toUtf8());
+    case EVR_TM:
+        return rspDataset->putAndInsertString(tag, value.toTime().toString("HHmmss").toUtf8());
     default:
+        if (tag.getVR().isaString())
+        {
+            return rspDataset->putAndInsertString(tag, value.toString().toUtf8());
+        }
         break;
     }
 
@@ -143,71 +148,99 @@ static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag
 static OFCondition findAndGetVariant(DcmDataset* rspDataset, const DcmTag& tag, QVariant& value)
 {
     OFCondition cond;
-    if (tag.getVR().isaString())
+    switch (tag.getEVR())
     {
-        const char* str = nullptr;
-        cond = rspDataset->findAndGetString(tag, str);
-        if (cond.good())
+    case EVR_FL:
+    case EVR_OF:
         {
-            value.setValue(QString::fromUtf8(str));
+            float f = 0.0f;
+            cond = rspDataset->findAndGetFloat32(tag, f);
+            if (cond.good()) { value.setValue(f); }
+            break;
         }
-    }
-    else
-    {
-        switch (tag.getEVR())
+    case EVR_FD:
         {
-        case EVR_FL:
-        case EVR_OF:
+            double d = 0.0;
+            cond = rspDataset->findAndGetFloat64(tag, d);
+            if (cond.good()) { value.setValue(d); }
+            break;
+        }
+    case EVR_SL:
+        {
+            Sint32 i = 0;
+            cond = rspDataset->findAndGetSint32(tag, i);
+            if (cond.good()) { value.setValue(i); }
+            break;
+        }
+    case EVR_UL:
+        {
+            Uint32 u = 0;
+            cond = rspDataset->findAndGetUint32(tag, u);
+            if (cond.good()) { value.setValue(u); }
+            break;
+        }
+    case EVR_SS:
+        {
+            Sint16 i = 0;
+            cond = rspDataset->findAndGetSint16(tag, i);
+            if (cond.good()) { value.setValue(i); }
+            break;
+        }
+    case EVR_US:
+        {
+            Uint16 u = 0;
+            cond = rspDataset->findAndGetUint16(tag, u);
+            if (cond.good()) { value.setValue(u); }
+            break;
+        }
+    case EVR_DA:
+        {
+            const char* str = nullptr;
+            cond = rspDataset->findAndGetString(tag, str);
+            if (cond.good())
             {
-                float f = 0.0f;
-                cond = rspDataset->findAndGetFloat32(tag, f);
-                if (cond.good()) { value.setValue(f); }
-                break;
+                value.setValue(QDate::fromString(str, "yyyyMMdd"));
             }
-        case EVR_FD:
+            break;
+        }
+    case EVR_DT:
+        {
+            const char* str = nullptr;
+            cond = rspDataset->findAndGetString(tag, str);
+            if (cond.good())
             {
-                double d = 0.0;
-                cond = rspDataset->findAndGetFloat64(tag, d);
-                if (cond.good()) { value.setValue(d); }
-                break;
+                value.setValue(QDateTime::fromString(str, "yyyyMMddHHmmss"));
             }
-        case EVR_SL:
+            break;
+        }
+    case EVR_TM:
+        {
+            const char* str = nullptr;
+            cond = rspDataset->findAndGetString(tag, str);
+            if (cond.good())
             {
-                Sint32 i = 0;
-                cond = rspDataset->findAndGetSint32(tag, i);
-                if (cond.good()) { value.setValue(i); }
-                break;
+                value.setValue(QTime::fromString(str, "HHmmss"));
             }
-        case EVR_UL:
+            break;
+        }
+    default:
+        if (tag.getVR().isaString())
+        {
+            const char* str = nullptr;
+            cond = rspDataset->findAndGetString(tag, str);
+            if (cond.good())
             {
-                Uint32 u = 0;
-                cond = rspDataset->findAndGetUint32(tag, u);
-                if (cond.good()) { value.setValue(u); }
-                break;
+                value.setValue(QString::fromUtf8(str));
             }
-        case EVR_SS:
-            {
-                Sint16 i = 0;
-                cond = rspDataset->findAndGetSint16(tag, i);
-                if (cond.good()) { value.setValue(i); }
-                break;
-            }
-        case EVR_US:
-            {
-                Uint16 u = 0;
-                cond = rspDataset->findAndGetUint16(tag, u);
-                if (cond.good()) { value.setValue(u); }
-                break;
-            }
-        default:
-            {
-                cond = EC_IllegalParameter;
-                break;
-            }
+        }
+        else
+        {
+            qDebug() << "VR" << tag.getVRName() << "not implemented";
+            cond = EC_IllegalParameter;
+            break;
         }
     }
 
-    qDebug() << "VR" << tag.getVRName() << "not implemented";
     return cond;
 }
 
@@ -1165,20 +1198,37 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     QVariantMap ret;
 
     settings.beginGroup("query");
-    auto url         = settings.value("url").toUrl();
-    auto userName    = settings.value("username").toString();
-    auto password    = settings.value("password").toString();
-    auto contendType = settings.value("content-type", DEFAULT_CONTENT_TYPE).toString();
-    auto extraParams = settings.value("query-parameters").toStringList();
+    auto url          = settings.value("url").toUrl();
+    auto userName     = settings.value("username").toString();
+    auto password     = settings.value("password").toString();
+    auto contendType  = settings.value("content-type", DEFAULT_CONTENT_TYPE).toString();
+
+    QStringList extraParams;
+    if (contendType.endsWith("xml", Qt::CaseInsensitive))
+    {
+        extraParams.append("study-instance-uid:StudyInstanceUID");
+        extraParams.append("medical-service-date:InstanceCreationDate");
+    }
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+    else if (contendType.endsWith("json", Qt::CaseInsensitive))
+    {
+        extraParams.append("studyInstanceUID:StudyInstanceUID");
+        extraParams.append("medicalServiceDate:InstanceCreationDate");
+    }
+#endif
+
+    extraParams = settings.value("query-parameters", extraParams).toStringList();
+    auto ignoreErrors = settings.value("ignore-errors").toStringList();
     settings.endGroup();
 
     settings.beginGroup(printer);
     settings.beginGroup("query");
-    url         = settings.value("url",              url).toUrl();
-    userName    = settings.value("username",         userName).toString();
-    password    = settings.value("password",         password).toString();
-    contendType = settings.value("content-type",     contendType).toString();
-    extraParams = settings.value("query-parameters", extraParams).toStringList();
+    url          = settings.value("url",              url).toUrl();
+    userName     = settings.value("username",         userName).toString();
+    password     = settings.value("password",         password).toString();
+    contendType  = settings.value("content-type",     contendType).toString();
+    extraParams  = settings.value("query-parameters", extraParams).toStringList();
+    ignoreErrors = settings.value("ignore-errors",    ignoreErrors).toStringList();
     settings.endGroup();
     settings.endGroup();
 
@@ -1208,7 +1258,7 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
 
     Q_FOREACH (auto extraParam, extraParams)
     {
-        auto parts = extraParam.split("=:");
+        auto parts = extraParam.split(QRegExp("=|:"));
         QVariant value;
 
         if (parts.size() > 1)
@@ -1232,22 +1282,12 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     QByteArray data;
     if (contendType.endsWith("xml", Qt::CaseInsensitive))
     {
-        // These parameters are hardcoded
-        //
-        queryParams["study-instance-uid"] = studyInstanceUID;
-        queryParams["medical-service-date"] = QDate::currentDate().toString("yyyy-MM-dd");
-
         data = writeXmlRequest("save-hardcopy-grayscale-image-request", queryParams);
     }
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
     else if (contendType.endsWith("json", Qt::CaseInsensitive))
     {
-        // These parameters are hardcoded
-        //
-        queryParams["studyInstanceUID"] = studyInstanceUID;
-        queryParams["medicalServiceDate"] = QDate::currentDate().toString("yyyy-MM-dd");
-
-        data = QJsonDocument(QJsonObject::fromVariantMap(queryParams)).toJson();
+        data = QJsonDocument(QJsonObject::fromVariantMap(queryParams)).toJson(QJsonDocument::Compact);
     }
 #endif
     else
@@ -1308,7 +1348,17 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     else
     {
         qDebug() << "response content type" << responseContentType << "not supported";
-        ++error;
+        error = true;
+
+        Q_FOREACH (auto ignore, ignoreErrors)
+        {
+            if (response.contains(ignore.toUtf8()))
+            {
+                error = false;
+                qDebug() << ignore << "found in the response. Error suppressed";
+                break;
+            }
+        }
     }
 
     if (error)
