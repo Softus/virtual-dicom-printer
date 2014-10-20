@@ -245,4 +245,6 @@ private:
     tesseract::TessBaseAPI tess;
 };
 
+bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset);
+
 #endif // PRINTSCP_H

@@ -70,7 +70,7 @@ static QString fixFileName(QString str)
     return str;
 }
 
-static bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
+bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
 {
     if (!QDir::root().mkpath(spoolPath))
     {

@@ -205,18 +205,10 @@ int main(int argc, char *argv[])
                             {
                                 // The Web query secceded, but store failed.
                                 // Move the file down to the queue.
-                                // At this point, we will copy the file many times,
-                                // for each failed store server.
+                                // At this point, we will copy the dataset as many times,
+                                // as need for each failed store server.
                                 //
-                                auto newName = spoolPath.append(QDir::separator())
-                                        .append(server).append(QDir::separator())
-                                        .append(file.fileName());
-
-                                if (!QFile::copy(filePath, newName))
-                                {
-                                    qDebug() << "Failed to copy file " << filePath
-                                             << "to" << newName << ": " << strerror(errno);
-                                }
+                                saveToDisk(spoolPath.append(QDir::separator()).append(server), dcmFF.getDataset());
                             }
                         }
 
