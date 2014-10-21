@@ -74,7 +74,7 @@ bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
 {
     if (!QDir::root().mkpath(spoolPath))
     {
-        qDebug() << "Failed to create folder " << spoolPath << ": " << strerror(errno);
+        qDebug() << "Failed to create folder " << spoolPath << ": " << QString::fromLocal8Bit(strerror(errno));
     }
 
     const char* patientId = nullptr;
@@ -110,33 +110,33 @@ bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
     return cond.good();
 }
 
-static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag, const QVariant& value)
+static OFCondition putAndInsertVariant(DcmDataset* dataset, const DcmTag& tag, const QVariant& value)
 {
     switch (tag.getEVR())
     {
     case EVR_FL:
     case EVR_OF:
-        return rspDataset->putAndInsertFloat32(tag, value.toFloat());
+        return dataset->putAndInsertFloat32(tag, value.toFloat());
     case EVR_FD:
-        return rspDataset->putAndInsertFloat64(tag, value.toDouble());
+        return dataset->putAndInsertFloat64(tag, value.toDouble());
     case EVR_SL:
-        return rspDataset->putAndInsertSint32(tag, value.toInt());
+        return dataset->putAndInsertSint32(tag, value.toInt());
     case EVR_UL:
-        return rspDataset->putAndInsertUint32(tag, value.toUInt());
+        return dataset->putAndInsertUint32(tag, value.toUInt());
     case EVR_SS:
-        return rspDataset->putAndInsertSint16(tag, (Sint16)value.toInt());
+        return dataset->putAndInsertSint16(tag, (Sint16)value.toInt());
     case EVR_US:
-        return rspDataset->putAndInsertUint16(tag, (Uint16)value.toUInt());
+        return dataset->putAndInsertUint16(tag, (Uint16)value.toUInt());
     case EVR_DA:
-        return rspDataset->putAndInsertString(tag, value.toDate().toString("yyyyMMdd").toUtf8());
+        return dataset->putAndInsertString(tag, value.toDate().toString("yyyyMMdd").toUtf8());
     case EVR_DT:
-        return rspDataset->putAndInsertString(tag, value.toDateTime().toString("yyyyMMddHHmmss").toUtf8());
+        return dataset->putAndInsertString(tag, value.toDateTime().toString("yyyyMMddHHmmss").toUtf8());
     case EVR_TM:
-        return rspDataset->putAndInsertString(tag, value.toTime().toString("HHmmss").toUtf8());
+        return dataset->putAndInsertString(tag, value.toTime().toString("HHmmss").toUtf8());
     default:
         if (tag.getVR().isaString())
         {
-            return rspDataset->putAndInsertString(tag, value.toString().toUtf8());
+            return dataset->putAndInsertString(tag, value.toString().toUtf8());
         }
         break;
     }
@@ -145,7 +145,7 @@ static OFCondition putAndInsertVariant(DcmDataset* rspDataset, const DcmTag& tag
     return EC_IllegalParameter;
 }
 
-static OFCondition findAndGetVariant(DcmDataset* rspDataset, const DcmTag& tag, QVariant& value)
+static OFCondition findAndGetVariant(DcmDataset* dataset, const DcmTag& tag, QVariant& value)
 {
     OFCondition cond;
     switch (tag.getEVR())
@@ -154,49 +154,49 @@ static OFCondition findAndGetVariant(DcmDataset* rspDataset, const DcmTag& tag, 
     case EVR_OF:
         {
             float f = 0.0f;
-            cond = rspDataset->findAndGetFloat32(tag, f);
+            cond = dataset->findAndGetFloat32(tag, f);
             if (cond.good()) { value.setValue(f); }
             break;
         }
     case EVR_FD:
         {
             double d = 0.0;
-            cond = rspDataset->findAndGetFloat64(tag, d);
+            cond = dataset->findAndGetFloat64(tag, d);
             if (cond.good()) { value.setValue(d); }
             break;
         }
     case EVR_SL:
         {
             Sint32 i = 0;
-            cond = rspDataset->findAndGetSint32(tag, i);
+            cond = dataset->findAndGetSint32(tag, i);
             if (cond.good()) { value.setValue(i); }
             break;
         }
     case EVR_UL:
         {
             Uint32 u = 0;
-            cond = rspDataset->findAndGetUint32(tag, u);
+            cond = dataset->findAndGetUint32(tag, u);
             if (cond.good()) { value.setValue(u); }
             break;
         }
     case EVR_SS:
         {
             Sint16 i = 0;
-            cond = rspDataset->findAndGetSint16(tag, i);
+            cond = dataset->findAndGetSint16(tag, i);
             if (cond.good()) { value.setValue(i); }
             break;
         }
     case EVR_US:
         {
             Uint16 u = 0;
-            cond = rspDataset->findAndGetUint16(tag, u);
+            cond = dataset->findAndGetUint16(tag, u);
             if (cond.good()) { value.setValue(u); }
             break;
         }
     case EVR_DA:
         {
             const char* str = nullptr;
-            cond = rspDataset->findAndGetString(tag, str);
+            cond = dataset->findAndGetString(tag, str);
             if (cond.good())
             {
                 value.setValue(QDate::fromString(str, "yyyyMMdd"));
@@ -206,7 +206,7 @@ static OFCondition findAndGetVariant(DcmDataset* rspDataset, const DcmTag& tag, 
     case EVR_DT:
         {
             const char* str = nullptr;
-            cond = rspDataset->findAndGetString(tag, str);
+            cond = dataset->findAndGetString(tag, str);
             if (cond.good())
             {
                 value.setValue(QDateTime::fromString(str, "yyyyMMddHHmmss"));
@@ -216,7 +216,7 @@ static OFCondition findAndGetVariant(DcmDataset* rspDataset, const DcmTag& tag, 
     case EVR_TM:
         {
             const char* str = nullptr;
-            cond = rspDataset->findAndGetString(tag, str);
+            cond = dataset->findAndGetString(tag, str);
             if (cond.good())
             {
                 value.setValue(QTime::fromString(str, "HHmmss"));
@@ -227,7 +227,7 @@ static OFCondition findAndGetVariant(DcmDataset* rspDataset, const DcmTag& tag, 
         if (tag.getVR().isaString())
         {
             const char* str = nullptr;
-            cond = rspDataset->findAndGetString(tag, str);
+            cond = dataset->findAndGetString(tag, str);
             if (cond.good())
             {
                 value.setValue(QString::fromUtf8(str));
@@ -1106,18 +1106,18 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
 
     rqDataset->putAndInsertString(DCM_SpecificCharacterSet, "ISO_IR 192"); // UTF-8
 
-    rqDataset->putAndInsertString(DCM_StudyInstanceUID,  studyInstanceUID.toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_SeriesInstanceUID, seriesInstanceUID.toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_SOPInstanceUID,    SOPInstanceUID.toUtf8(), false);
+    rqDataset->putAndInsertString(DCM_StudyInstanceUID,  studyInstanceUID.toUtf8());
+    rqDataset->putAndInsertString(DCM_SeriesInstanceUID, seriesInstanceUID.toUtf8());
+    rqDataset->putAndInsertString(DCM_SOPInstanceUID,    SOPInstanceUID.toUtf8());
 
     auto now = QDateTime::currentDateTime();
-    rqDataset->putAndInsertString(DCM_InstanceCreationDate, now.toString("yyyyMMdd").toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_InstanceCreationTime, now.toString("HHmmss").toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_StudyDate, now.toString("yyyyMMdd").toUtf8(), false);
-    rqDataset->putAndInsertString(DCM_StudyTime, now.toString("HHmmss").toUtf8(), false);
+    putAndInsertVariant(rqDataset, DCM_InstanceCreationDate, now);
+    putAndInsertVariant(rqDataset, DCM_InstanceCreationTime, now);
+    putAndInsertVariant(rqDataset, DCM_StudyDate, now);
+    putAndInsertVariant(rqDataset, DCM_StudyTime, now);
 
-    rqDataset->putAndInsertString(DCM_Manufacturer, ORGANIZATION_FULL_NAME, false);
-    rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME, false);
+    rqDataset->putAndInsertString(DCM_Manufacturer, ORGANIZATION_FULL_NAME);
+    rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME);
 
     QSettings settings;
     auto spoolPath = settings.value("spool-path").toString();
@@ -1370,6 +1370,10 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     }
     else
     {
+        // Store web service response to the dataset.
+        // All values must be serialized to strings in the DICOM way,
+        // i.e. '20141225' for date values, '175959' for time values.
+
         for (auto i = ret.constBegin(); i != ret.constEnd(); ++i)
         {
             DcmTag tag;
@@ -1379,13 +1383,38 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
             }
             else
             {
-                // We shouldn't call translateToLatin for integers & dates,
-                // but it is clear that translateToLatin does not affect
-                // numbers nor punctuation characters.
+                QVariant value;
+                auto str = i.value().toString();
+
+                // We shouldn't call translateToLatin for integers & dates.
                 //
-                auto str = translateToLatin(i.value().toString());
-                qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str;
-                putAndInsertVariant(rqDataset, tag, str);
+                if (tag.getVR().isaString())
+                {
+                    value.setValue(translateToLatin(str));
+                }
+                else if (tag.getEVR() == EVR_DA && str.length() == 8)
+                {
+                    value.setValue(QDate::fromString(str, "yyyyMMdd"));
+                }
+                else if (tag.getEVR() == EVR_TM && str.length() == 8)
+                {
+                    value.setValue(QTime::fromString(str, "HHmmss"));
+                }
+                else if (tag.getEVR() == EVR_DT && str.length() == 16)
+                {
+                    value.setValue(QDateTime::fromString(str, "yyyyMMddHHmmss"));
+                }
+                else
+                {
+                    value = i.value();
+                }
+
+                qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << value;
+                auto cond = putAndInsertVariant(rqDataset, tag, value);
+                if (cond.bad())
+                {
+                    qDebug() << "Failed to set" << tag.getTagName() << "value" << QString::fromLocal8Bit(cond.text());
+                }
             }
         }
     }

@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
 
                         if (!QFile::remove(filePath))
                         {
-                            qDebug() << "Failed to remove file " << filePath << ": " << strerror(errno);
+                            qDebug() << "Failed to remove file " << filePath << ": " << QString::fromLocal8Bit(strerror(errno));
                         }
                     }
                 }
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
                         {
                             if (!QFile::remove(filePath))
                             {
-                                qDebug() << "Failed to remove file " << filePath << ": " << strerror(errno);
+                                qDebug() << "Failed to remove file " << filePath << ": " << QString::fromLocal8Bit(strerror(errno));
                             }
                         }
                     }
