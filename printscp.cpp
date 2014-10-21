@@ -1392,11 +1392,11 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
                 {
                     value.setValue(QDate::fromString(str, "yyyyMMdd"));
                 }
-                else if (tag.getEVR() == EVR_TM && str.length() == 8)
+                else if (tag.getEVR() == EVR_TM && str.length() == 6)
                 {
                     value.setValue(QTime::fromString(str, "HHmmss"));
                 }
-                else if (tag.getEVR() == EVR_DT && str.length() == 16)
+                else if (tag.getEVR() == EVR_DT && str.length() == 14)
                 {
                     value.setValue(QDateTime::fromString(str, "yyyyMMddHHmmss"));
                 }
