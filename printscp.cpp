@@ -1388,11 +1388,7 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
 
                 // We shouldn't call translateToLatin for integers & dates.
                 //
-                if (tag.getVR().isaString())
-                {
-                    value.setValue(translateToLatin(str));
-                }
-                else if (tag.getEVR() == EVR_DA && str.length() == 8)
+                if (tag.getEVR() == EVR_DA && str.length() == 8)
                 {
                     value.setValue(QDate::fromString(str, "yyyyMMdd"));
                 }
@@ -1403,6 +1399,10 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
                 else if (tag.getEVR() == EVR_DT && str.length() == 16)
                 {
                     value.setValue(QDateTime::fromString(str, "yyyyMMddHHmmss"));
+                }
+                else if (tag.getVR().isaString())
+                {
+                    value.setValue(translateToLatin(str));
                 }
                 else
                 {
