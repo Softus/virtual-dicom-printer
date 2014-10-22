@@ -199,6 +199,10 @@ private:
      */
     void insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, DicomImage *di, QSettings &settings);
 
+    void dump(const char* desc, DcmItem *dataset);
+    void dumpIn(T_DIMSE_Message &msg, DcmItem *dataset);
+    void dumpOut(T_DIMSE_Message &msg, DcmItem *dataset);
+
     /* class data */
 
     // blocking mode for receive
@@ -243,6 +247,10 @@ private:
     // OCR
     //
     tesseract::TessBaseAPI tess;
+
+    // Log upstream printer traffic (off by default)
+    //
+    bool debugUpstream;
 };
 
 bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset);

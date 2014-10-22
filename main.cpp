@@ -32,7 +32,7 @@
 static void cleanChildren()
 {
 #ifdef HAVE_WAITPID
-    int stat_loc;
+    int status;
 #elif HAVE_WAIT3
     struct rusage rusage;
 #if defined(__NeXT__)
@@ -49,7 +49,7 @@ static void cleanChildren()
     while (child > 0)
     {
 #ifdef HAVE_WAITPID
-        child = (int)(waitpid(-1, &stat_loc, options));
+        child = (int)(waitpid(-1, &status, options));
 #elif defined(HAVE_WAIT3)
         child = wait3(&status, options, &rusage);
 #endif
@@ -57,9 +57,14 @@ static void cleanChildren()
         {
             if (errno != ECHILD)
             {
-                qDebug() << "wait for child failed: " << errno;
+                qDebug() << "wait for child failed: " << QString::fromLocal8Bit(strerror(errno));
             }
         }
+        else if (child > 0)
+        {
+            qDebug() << "Child process" << child << "terminated with status" << status;
+        }
+
     }
 #endif
 }
@@ -78,8 +83,8 @@ int main(int argc, char *argv[])
         log4cplus::Logger::getRoot().setLogLevel(level);
     }
 
-    auto debug = settings.value("debug").toBool();
-    if (debug)
+    auto debugUpstream = settings.value("debug-upstream").toBool();
+    if (debugUpstream)
     {
         log4cplus::Logger log = log4cplus::Logger::getInstance("dcmtk.dcmpstat.dump");
         log.setLogLevel(OFLogger::DEBUG_LOG_LEVEL);
@@ -104,7 +109,7 @@ int main(int argc, char *argv[])
     auto err = setuid(getuid());
     if (err)
     {
-        qDebug() << "setuid failed" << errno << "this may dangerous";
+        qDebug() << "setuid failed" << errno << "this may be dangerous";
     }
 #endif
 
@@ -113,6 +118,8 @@ int main(int argc, char *argv[])
 #else
     int listen_timeout=1000;
 #endif
+
+    qDebug() << "Virtual DICOM printer version 1.0 started. Master process pid" << getpid();
 
     Q_FOREVER
     {
@@ -160,7 +167,12 @@ int main(int argc, char *argv[])
                 printSCP.handleClient();
                 break;
             }
+            else
+            {
+                qDebug() << "Child process" << pid << "spawned";
+            }
 #else
+            qDebug() << "Will handle client connection in the main process";
             printSCP.handleClient();
 #endif
         }
@@ -179,8 +191,10 @@ int main(int argc, char *argv[])
                 //
                 Q_FOREACH (auto file, QDir(spoolPath).entryInfoList(QDir::Files))
                 {
-                    DcmFileFormat dcmFF;
                     auto filePath = file.absoluteFilePath();
+                    qDebug() << "Retrying " << filePath;
+
+                    DcmFileFormat dcmFF;
                     cond = dcmFF.loadFile(filePath.toLocal8Bit());
                     if (cond.bad())
                     {
@@ -224,8 +238,10 @@ int main(int argc, char *argv[])
                     StoreSCP sscp(server);
                     Q_FOREACH (auto file, QDir(spoolPath.append(QDir::separator()).append(server)).entryInfoList(QDir::Files))
                     {
-                        DcmFileFormat dcmFF;
                         auto filePath = file.absoluteFilePath();
+                        qDebug() << "Resending " << filePath;
+
+                        DcmFileFormat dcmFF;
                         cond = dcmFF.loadFile(filePath.toLocal8Bit());
                         if (cond.bad())
                         {
