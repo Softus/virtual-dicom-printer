@@ -45,31 +45,6 @@
 #include <dcmtk/dcmpstat/dvpsdef.h>     /* for constants */
 #include <dcmtk/dcmimgle/dcmimage.h>    /* for DicomImage */
 
-static QString fixFileName(QString str)
-{
-    if (!str.isNull())
-    {
-        for (int i = 0; i < str.length(); ++i)
-        {
-            switch (str[i].unicode())
-            {
-            case '<':
-            case '>':
-            case ':':
-            case '\"':
-            case '/':
-            case '\\':
-            case '|':
-            case '?':
-            case '*':
-                str[i] = '_';
-                break;
-            }
-        }
-    }
-    return str;
-}
-
 bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
 {
     if (!QDir::root().mkpath(spoolPath))
@@ -77,14 +52,9 @@ bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
         qDebug() << "Failed to create folder " << spoolPath << ": " << QString::fromLocal8Bit(strerror(errno));
     }
 
-    const char* patientId = nullptr;
-    rqDataset->findAndGetString(DCM_PatientID, patientId);
-    const char* patientName = nullptr;
-    rqDataset->findAndGetString(DCM_PatientName, patientName);
-
-    QString fileName = QString(spoolPath)
-            .append(QDir::separator()).append(fixFileName(QString::fromUtf8(patientName)))
-            .append('_').append(fixFileName(QString::fromUtf8(patientId))).append(".dcm");
+    const char* uId = nullptr;
+    rqDataset->findAndGetString(DCM_SOPInstanceUID, uId);
+    QString fileName = QString(spoolPath).append(QDir::separator()).append(uId).append(".dcm");
 
     if (QFile::exists(fileName))
     {
@@ -105,6 +75,10 @@ bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
     if (cond.bad())
     {
         qDebug() << "Failed to save " << fileName << ": " << QString::fromLocal8Bit(cond.text());
+    }
+    else
+    {
+        qDebug() << "Dataset saved to " << fileName;
     }
 
     return cond.good();
