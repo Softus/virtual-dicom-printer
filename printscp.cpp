@@ -525,18 +525,32 @@ void PrintSCP::dropAssociations()
 {
     if (assoc)
     {
-        qDebug() << "Client association with"
-             << assoc->params->DULparams.callingPresentationAddress << ":"
-             << assoc->params->DULparams.callingAPTitle << "closed" << "pid" << getpid();
+        if (assoc->params)
+        {
+            qDebug() << "Client association with"
+                 << assoc->params->DULparams.callingPresentationAddress << ":"
+                 << assoc->params->DULparams.callingAPTitle << "closed" << "pid" << getpid();
+        }
+        else
+        {
+            qDebug() << "Client association with unknown params closed" << "pid" << getpid();
+        }
         ASC_dropSCPAssociation(assoc);
         ASC_destroyAssociation(&assoc);
     }
 
     if (upstream)
     {
-        qDebug() << "Upstream association with"
-             << assoc->params->DULparams.callingPresentationAddress << ":"
-             << assoc->params->DULparams.callingAPTitle << "closed" << "pid" << getpid();
+        if (upstream->params)
+        {
+            qDebug() << "Upstream association with"
+                 << upstream->params->DULparams.callingPresentationAddress << ":"
+                 << upstream->params->DULparams.callingAPTitle << "closed" << "pid" << getpid();
+        }
+        else
+        {
+            qDebug() << "Upstream association with unknown params closed" << "pid" << getpid();
+        }
         ASC_dropSCPAssociation(upstream);
         ASC_destroyAssociation(&upstream);
         ASC_dropNetwork(&upstreamNet);
