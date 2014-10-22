@@ -256,30 +256,6 @@ static bool isDatasetPresent(T_DIMSE_Message &msg)
     return false;
 }
 
-static void dump(const char* desc, DcmItem *dataset)
-{
-    if (!dataset)
-        return;
-
-    std::stringstream ss;
-    dataset->print(ss);
-    qDebug() << desc << QString::fromLocal8Bit(ss.str().c_str());
-}
-
-static void dumpIn(T_DIMSE_Message &msg, DcmItem *dataset)
-{
-    OFString str;
-    DIMSE_dumpMessage(str, msg, DIMSE_INCOMING, dataset);
-    qDebug() << QString::fromLocal8Bit(str.c_str());
-}
-
-static void dumpOut(T_DIMSE_Message &msg, DcmItem *dataset)
-{
-    OFString str;
-    DIMSE_dumpMessage(str, msg, DIMSE_OUTGOING, dataset);
-    qDebug() << QString::fromLocal8Bit(str.c_str());
-}
-
 static void copyItems(DcmItem* src, DcmItem *dst)
 {
     // The source dataset is optional
@@ -316,6 +292,7 @@ PrintSCP::PrintSCP(QObject *parent, const QString &printer)
     , upstreamNet(nullptr)
     , assoc(nullptr)
     , upstream(nullptr)
+    , debugUpstream(false)
 {
     QSettings settings;
     auto ocrLang = settings.value("ocr-lang", DEFAULT_OCR_LANG).toString();
@@ -326,14 +303,45 @@ PrintSCP::PrintSCP(QObject *parent, const QString &printer)
     tess.Init(nullptr, ocrLang.toUtf8(), tesseract::OEM_TESSERACT_ONLY);
     setlocale(LC_NUMERIC, oldLocale);
 
-    blockMode = (T_DIMSE_BlockingMode)settings.value("block-mode", blockMode).toInt();
-    timeout   = settings.value("timeout", timeout).toInt();
+    blockMode     = (T_DIMSE_BlockingMode)settings.value("block-mode", blockMode).toInt();
+    timeout       = settings.value("timeout", timeout).toInt();
+    debugUpstream = settings.value("debug-upstream", debugUpstream).toBool();
 }
 
 PrintSCP::~PrintSCP()
 {
     dropAssociations();
     ASC_dropNetwork(&upstreamNet);
+}
+
+void PrintSCP::dump(const char* desc, DcmItem *dataset)
+{
+    if (!dataset || !debugUpstream)
+        return;
+
+    std::stringstream ss;
+    dataset->print(ss);
+    qDebug() << desc << QString::fromLocal8Bit(ss.str().c_str());
+}
+
+void PrintSCP::dumpIn(T_DIMSE_Message &msg, DcmItem *dataset)
+{
+    if (!dataset || !debugUpstream)
+        return;
+
+    OFString str;
+    DIMSE_dumpMessage(str, msg, DIMSE_INCOMING, dataset);
+    qDebug() << QString::fromLocal8Bit(str.c_str());
+}
+
+void PrintSCP::dumpOut(T_DIMSE_Message &msg, DcmItem *dataset)
+{
+    if (!dataset || !debugUpstream)
+        return;
+
+    OFString str;
+    DIMSE_dumpMessage(str, msg, DIMSE_OUTGOING, dataset);
+    qDebug() << QString::fromLocal8Bit(str.c_str());
 }
 
 DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *net)
@@ -376,12 +384,13 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
     {
         printer = QString::fromUtf8(assoc->params->DULparams.calledAPTitle);
 
-        qDebug() << "Client association received (max send PDV: "
-             << assoc->sendPDVLength << ")"
+        qDebug() << "\n\n\nClient association received (max send PDV: " << assoc->sendPDVLength << ")"
              << assoc->params->DULparams.callingPresentationAddress << ":"
              << assoc->params->DULparams.callingAPTitle << "=>"
              << assoc->params->DULparams.calledPresentationAddress << ":"
-             << assoc->params->DULparams.calledAPTitle;
+             << assoc->params->DULparams.calledAPTitle
+             << QDateTime::currentDateTime().toString(Qt::ISODate)
+             ;
 
         ASC_setAPTitles(assoc->params, nullptr, nullptr, printer.toUtf8());
 
@@ -425,6 +434,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         auto calleeAETitle   = settings.value("aetitle", assoc->params->DULparams.callingAPTitle).toString().toUpper();
         forceUniqueSeries    = settings.value("force-unique-series").toBool();
         forceUniqueStudy     = settings.value("force-unique-study").toBool();
+        debugUpstream        = settings.value("debug-upstream").toBool();
         settings.endGroup();
 
         if (printerAETitle.isEmpty())
@@ -515,14 +525,18 @@ void PrintSCP::dropAssociations()
 {
     if (assoc)
     {
-        qDebug() << "Client connection closed";
+        qDebug() << "Client association with"
+             << assoc->params->DULparams.callingPresentationAddress << ":"
+             << assoc->params->DULparams.callingAPTitle << "closed" << "pid" << getpid();
         ASC_dropSCPAssociation(assoc);
         ASC_destroyAssociation(&assoc);
     }
 
     if (upstream)
     {
-        qDebug() << "Upstream connection closed";
+        qDebug() << "Upstream association with"
+             << assoc->params->DULparams.callingPresentationAddress << ":"
+             << assoc->params->DULparams.callingAPTitle << "closed" << "pid" << getpid();
         ASC_dropSCPAssociation(upstream);
         ASC_destroyAssociation(&upstream);
         ASC_dropNetwork(&upstreamNet);
@@ -708,7 +722,7 @@ void PrintSCP::handleClient()
 
     } /* while */
 
-    qDebug() << "Done";
+    qDebug() << "Print session is done";
 
     // close client association
     //
@@ -1383,7 +1397,7 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
                     value = i.value();
                 }
 
-                qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << value;
+                //qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << value;
                 auto cond = putAndInsertVariant(rqDataset, tag, value);
                 if (cond.bad())
                 {
@@ -1465,7 +1479,7 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, Dicom
             }
             else
             {
-                qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str << param;
+                //qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str << param;
                 rqDataset->putAndInsertString(tag, str.toUtf8());
             }
         }

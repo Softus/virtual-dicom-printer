@@ -187,6 +187,12 @@ OFCondition StoreSCP::sendToServer(DcmDataset* rqDataset, const char *sopInstanc
         assoc = nullptr;
     }
     settings.endGroup();
+
+    if (cond.bad())
+    {
+        qDebug() << "Failed to store " << sopInstance << QString::fromLocal8Bit(cond.text());
+    }
+
     return cond;
 }
 
