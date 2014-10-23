@@ -94,6 +94,16 @@ int main(int argc, char *argv[])
     auto tout = settings.value("timeout", DEFAULT_TIMEOUT).toInt();
     T_ASC_Network *net;
     OFCondition cond = ASC_initializeNetwork(NET_ACCEPTOR, port, tout, &net);
+
+    // When the listener process has been recently crashed,
+    // the port will be busy for some time (see CLOSE_WAIT).
+    //
+    for (int i = 0; cond.bad() && i < 20; ++i)
+    {
+        usleep(200000);
+        cond = ASC_initializeNetwork(NET_ACCEPTOR, port, tout, &net);
+    }
+
     if (cond.bad())
     {
         qDebug() << "cannot initialise network" << QString::fromLocal8Bit(cond.text());
