@@ -214,9 +214,14 @@ int main(int argc, char *argv[])
 
                     const char* printer = nullptr;
                     dcmFF.getDataset()->findAndGetString(DCM_RETIRED_PrintQueueID, printer);
-                    PrintSCP printSCP(nullptr, QString::fromUtf8(printer));
+                    if (printer == nullptr)
+                    {
+                        qDebug() << "Failed to retry " << filePath << ": no printer instance specified";
+                        continue;
+                    }
+                    PrintSCP retryPrintSCP(nullptr, QString::fromUtf8(printer));
 
-                    if (printSCP.webQuery(dcmFF.getDataset()))
+                    if (retryPrintSCP.webQuery(dcmFF.getDataset()))
                     {
                         foreach (auto server, settings.value("storage-servers").toStringList())
                         {

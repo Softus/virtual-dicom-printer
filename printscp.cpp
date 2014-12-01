@@ -1174,8 +1174,8 @@ static QByteArray writeXmlRequest(const QString& root, const QVariantMap& map)
 
 static QVariantMap readXmlResponse(const QByteArray& data)
 {
-    QVariantMap map;
     QXmlStreamReader xml(data);
+    QVariantMap map;
 
     while (xml.readNextStartElement())
     {
@@ -1184,9 +1184,17 @@ static QVariantMap readXmlResponse(const QByteArray& data)
             auto key = xml.attributes().value("tag").toString();
             map[key] = xml.readElementText();
         }
-        else if (xml.name() != "data-set")
+        else if (xml.name() != "data-set" && xml.name() != "business-logic-error")
         {
-            qDebug() << "Unexpected element" << xml.name();
+            auto text = xml.readElementText(QXmlStreamReader::SkipChildElements);
+            if (text.isEmpty())
+            {
+                qDebug() << "Unexpected element" << xml.name();
+            }
+            else
+            {
+                map[xml.name().toString()] = text;
+            }
         }
     }
 
@@ -1351,13 +1359,20 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     {
         qDebug() << "response content type" << responseContentType << "not supported";
         error = true;
+    }
+
+    // Check for errors we can safelly ignore
+    //
+    if (error)
+    {
+        auto msg = ret.contains("message")? ret["message"].toString(): QString::fromUtf8(response);
 
         Q_FOREACH (auto ignore, ignoreErrors)
         {
-            if (response.contains(ignore.toUtf8()))
+            if (msg.contains(ignore))
             {
                 error = false;
-                qDebug() << ignore << "found in the response. Error suppressed";
+                qDebug() << ignore << "found in the response. The error was suppressed";
                 break;
             }
         }
@@ -1365,7 +1380,7 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
 
     if (error)
     {
-        // Reset the patient name & id in case of error
+        // Reset the patient name & id in case of an error
         //
         rqDataset->putAndInsertString(DCM_PatientID,   "0", true);
         rqDataset->putAndInsertString(DCM_PatientName, "^", true);
