@@ -1389,6 +1389,12 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     }
     else
     {
+        // Put in some required fields, in case they are empty.
+        // Normally, we expect them to be overriden with the data received from the app server.
+        //
+        rqDataset->putAndInsertString(DCM_PatientID,   "0", false);
+        rqDataset->putAndInsertString(DCM_PatientName, "^", false);
+
         // Store web service response to the dataset.
         // All values must be serialized to strings in the DICOM way,
         // i.e. '20141225' for date values, '175959' for time values.
