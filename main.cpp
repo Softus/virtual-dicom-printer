@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
                 // Do the real work.
                 //
                 printSCP.handleClient();
+                qDebug() << "Child process completed. pid" << getpid();
                 break;
             }
             else
@@ -281,6 +282,5 @@ int main(int argc, char *argv[])
         }
     }
 
-    cleanChildren();
     return 0;
 }

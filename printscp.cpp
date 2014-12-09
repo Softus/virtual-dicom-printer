@@ -312,6 +312,7 @@ PrintSCP::~PrintSCP()
 {
     dropAssociations();
     ASC_dropNetwork(&upstreamNet);
+    qDebug() << __func__  << "pid" << getpid();
 }
 
 void PrintSCP::dump(const char* desc, DcmItem *dataset)
@@ -558,6 +559,7 @@ void PrintSCP::dropAssociations()
 
     delete sessionDataset;
     sessionDataset = nullptr;
+    qDebug() << "Drop association completed. pid" << getpid();
 }
 
 void PrintSCP::handleClient()
