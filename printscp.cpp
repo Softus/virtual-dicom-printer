@@ -433,9 +433,9 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         auto printerAETitle  = settings.value("upstream-aetitle").toString();
         auto printerAddress  = settings.value("upstream-address").toString();
         auto calleeAETitle   = settings.value("aetitle", assoc->params->DULparams.callingAPTitle).toString().toUpper();
-        forceUniqueSeries    = settings.value("force-unique-series").toBool();
-        forceUniqueStudy     = settings.value("force-unique-study").toBool();
-        debugUpstream        = settings.value("debug-upstream").toBool();
+        forceUniqueSeries    = settings.value("force-unique-series", forceUniqueSeries).toBool();
+        forceUniqueStudy     = settings.value("force-unique-study", forceUniqueStudy).toBool();
+        debugUpstream        = settings.value("debug-upstream", debugUpstream).toBool();
         settings.endGroup();
 
         if (printerAETitle.isEmpty())
