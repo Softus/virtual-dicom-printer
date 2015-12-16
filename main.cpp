@@ -27,7 +27,7 @@
 #include <dcmtk/dcmdata/dcdeftag.h>
 #include <dcmtk/dcmdata/dcfilefo.h>
 
-#define DEFAULT_SPOOL_INTERVAL 1800
+#define DEFAULT_SPOOL_INTERVAL 600
 
 static void cleanChildren()
 {
@@ -67,6 +67,110 @@ static void cleanChildren()
 
     }
 #endif
+}
+
+static void resendFailedPrints(QSettings& settings)
+{
+    // Retry failed prints
+    //
+    auto spoolPath = settings.value("spool-path").toString();
+    if (spoolPath.isEmpty())
+    {
+        // Retry spool is disabled
+        return;
+    }
+
+    if (QDateTime::currentDateTime() < settings.value("next-spool-ts").toDateTime())
+    {
+        // Not yet. May be next time
+        return;
+    }
+
+    auto spoolInterval = settings.value("spool-interval-in-seconds", DEFAULT_SPOOL_INTERVAL).toInt();
+    settings.setValue("next-spool-ts", QDateTime::currentDateTime().addSecs(spoolInterval));
+
+    OFCondition cond;
+
+    // Retry failed web queries
+    //
+    Q_FOREACH (auto file, QDir(spoolPath).entryInfoList(QDir::Files))
+    {
+        auto filePath = file.absoluteFilePath();
+        qDebug() << "Retrying " << filePath;
+
+        DcmFileFormat dcmFF;
+        cond = dcmFF.loadFile(filePath.toLocal8Bit());
+        if (cond.bad())
+        {
+            qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());
+            continue;
+        }
+
+        const char* printer = nullptr;
+        dcmFF.getDataset()->findAndGetString(DCM_RETIRED_PrintQueueID, printer);
+        if (printer == nullptr)
+        {
+            qDebug() << "Failed to retry " << filePath << ": no printer instance specified";
+            continue;
+        }
+        PrintSCP retryPrintSCP(nullptr, QString::fromUtf8(printer));
+
+        if (retryPrintSCP.webQuery(dcmFF.getDataset()))
+        {
+            foreach (auto server, settings.value("storage-servers").toStringList())
+            {
+                StoreSCP sscp(server);
+                const char* SOPInstanceUID = nullptr;
+                dcmFF.getDataset()->findAndGetString(DCM_SOPInstanceUID, SOPInstanceUID);
+
+                cond = sscp.sendToServer(dcmFF.getDataset(), SOPInstanceUID);
+                if (cond.bad())
+                {
+                    // The Web query secceded, but store failed.
+                    // Move the file down to the queue.
+                    // At this point, we will copy the dataset as many times,
+                    // as need for each failed store server.
+                    //
+                    saveToDisk(spoolPath.append(QDir::separator()).append(server), dcmFF.getDataset());
+                }
+            }
+
+            if (!QFile::remove(filePath))
+            {
+                qDebug() << "Failed to remove file " << filePath << ": " << QString::fromLocal8Bit(strerror(errno));
+            }
+        }
+    }
+
+    foreach (auto server, settings.value("storage-servers").toStringList())
+    {
+        StoreSCP sscp(server);
+        Q_FOREACH (auto file, QDir(spoolPath.append(QDir::separator()).append(server)).entryInfoList(QDir::Files))
+        {
+            auto filePath = file.absoluteFilePath();
+            qDebug() << "Resending " << filePath;
+
+            DcmFileFormat dcmFF;
+            cond = dcmFF.loadFile(filePath.toLocal8Bit());
+            if (cond.bad())
+            {
+                qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());
+                continue;
+            }
+
+            const char* SOPInstanceUID = nullptr;
+            dcmFF.getDataset()->findAndGetString(DCM_SOPInstanceUID, SOPInstanceUID);
+
+            cond = sscp.sendToServer(dcmFF.getDataset(), SOPInstanceUID);
+            if (cond.good())
+            {
+                if (!QFile::remove(filePath))
+                {
+                    qDebug() << "Failed to remove file " << filePath << ": " << QString::fromLocal8Bit(strerror(errno));
+                }
+            }
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -124,12 +228,12 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef HAVE_FORK
-    int listen_timeout=1;
+    int listen_timeout=10;
 #else
-    int listen_timeout=1000;
+    int listen_timeout=10000;
 #endif
 
-    qDebug() << "Virtual DICOM printer version 1.0 started. Master process pid" << getpid();
+    qDebug() << "Virtual DICOM printer version" << PRODUCT_VERSION_STR << "started. Master process pid" << getpid();
 
     Q_FOREVER
     {
@@ -140,6 +244,7 @@ int main(int argc, char *argv[])
         do
         {
            cleanChildren();
+           resendFailedPrints(settings);
         }
         while (!ASC_associationWaiting(net, listen_timeout));
 
@@ -186,99 +291,6 @@ int main(int argc, char *argv[])
             qDebug() << "Will handle client connection in the main process";
             printSCP.handleClient();
 #endif
-        }
-
-        // Retry failed prints
-        //
-        auto spoolPath = settings.value("spool-path").toString();
-        if (!spoolPath.isEmpty())
-        {
-            if (QDateTime::currentDateTime() > settings.value("next-spool-ts").toDateTime())
-            {
-                auto spoolInterval = settings.value("spool-interval-in-seconds", DEFAULT_SPOOL_INTERVAL).toInt();
-                settings.setValue("next-spool-ts", QDateTime::currentDateTime().addSecs(spoolInterval));
-
-                // Retry failed web queries
-                //
-                Q_FOREACH (auto file, QDir(spoolPath).entryInfoList(QDir::Files))
-                {
-                    auto filePath = file.absoluteFilePath();
-                    qDebug() << "Retrying " << filePath;
-
-                    DcmFileFormat dcmFF;
-                    cond = dcmFF.loadFile(filePath.toLocal8Bit());
-                    if (cond.bad())
-                    {
-                        qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());
-                        continue;
-                    }
-
-                    const char* printer = nullptr;
-                    dcmFF.getDataset()->findAndGetString(DCM_RETIRED_PrintQueueID, printer);
-                    if (printer == nullptr)
-                    {
-                        qDebug() << "Failed to retry " << filePath << ": no printer instance specified";
-                        continue;
-                    }
-                    PrintSCP retryPrintSCP(nullptr, QString::fromUtf8(printer));
-
-                    if (retryPrintSCP.webQuery(dcmFF.getDataset()))
-                    {
-                        foreach (auto server, settings.value("storage-servers").toStringList())
-                        {
-                            StoreSCP sscp(server);
-                            const char* SOPInstanceUID = nullptr;
-                            dcmFF.getDataset()->findAndGetString(DCM_SOPInstanceUID, SOPInstanceUID);
-
-                            cond = sscp.sendToServer(dcmFF.getDataset(), SOPInstanceUID);
-                            if (cond.bad())
-                            {
-                                // The Web query secceded, but store failed.
-                                // Move the file down to the queue.
-                                // At this point, we will copy the dataset as many times,
-                                // as need for each failed store server.
-                                //
-                                saveToDisk(spoolPath.append(QDir::separator()).append(server), dcmFF.getDataset());
-                            }
-                        }
-
-                        if (!QFile::remove(filePath))
-                        {
-                            qDebug() << "Failed to remove file " << filePath << ": " << QString::fromLocal8Bit(strerror(errno));
-                        }
-                    }
-                }
-
-                foreach (auto server, settings.value("storage-servers").toStringList())
-                {
-                    StoreSCP sscp(server);
-                    Q_FOREACH (auto file, QDir(spoolPath.append(QDir::separator()).append(server)).entryInfoList(QDir::Files))
-                    {
-                        auto filePath = file.absoluteFilePath();
-                        qDebug() << "Resending " << filePath;
-
-                        DcmFileFormat dcmFF;
-                        cond = dcmFF.loadFile(filePath.toLocal8Bit());
-                        if (cond.bad())
-                        {
-                            qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());
-                            continue;
-                        }
-
-                        const char* SOPInstanceUID = nullptr;
-                        dcmFF.getDataset()->findAndGetString(DCM_SOPInstanceUID, SOPInstanceUID);
-
-                        cond = sscp.sendToServer(dcmFF.getDataset(), SOPInstanceUID);
-                        if (cond.good())
-                        {
-                            if (!QFile::remove(filePath))
-                            {
-                                qDebug() << "Failed to remove file " << filePath << ": " << QString::fromLocal8Bit(strerror(errno));
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 

@@ -28,6 +28,7 @@
 #include <QNetworkReply>
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QJsonObject>
 #endif
 #include <QRect>
@@ -1203,6 +1204,21 @@ static QVariantMap readXmlResponse(const QByteArray& data)
     return map;
 }
 
+static QVariantMap readJsonResponse(const QByteArray& data)
+{
+    QVariantMap map;
+    auto elements = QJsonDocument::fromJson(data).array();
+    qDebug() << "Server response is about" << elements.size() << "elements";
+
+    Q_FOREACH (auto elm, elements)
+    {
+        auto obj = elm.toObject();
+        map[obj.value("tag").toString()] = obj.value("value");
+    }
+
+    return map;
+}
+
 bool PrintSCP::webQuery(DcmDataset *rqDataset)
 {
     QSettings settings;
@@ -1354,7 +1370,7 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
     else if (responseContentType.endsWith("json"))
     {
-        ret = QJsonDocument::fromJson(response).object().toVariantMap();
+        ret = readJsonResponse(response);
     }
 #endif
     else
@@ -1380,21 +1396,15 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
         }
     }
 
-    if (error)
-    {
-        // Reset the patient name & id in case of an error
-        //
-        rqDataset->putAndInsertString(DCM_PatientID,   "0", true);
-        rqDataset->putAndInsertString(DCM_PatientName, "^", true);
-    }
-    else
-    {
-        // Put in some required fields, in case they are empty.
-        // Normally, we expect them to be overriden with the data received from the app server.
-        //
-        rqDataset->putAndInsertString(DCM_PatientID,   "0", false);
-        rqDataset->putAndInsertString(DCM_PatientName, "^", false);
+    // Add some required fields, in case if they are empty.
+    // Normally, we expect them to be overriden with the data received from the app server.
+    // Also, reset the patient name & id in case of an error.
+    //
+    rqDataset->putAndInsertString(DCM_PatientID,   "0", error);
+    rqDataset->putAndInsertString(DCM_PatientName, "^", error);
 
+    if (!error)
+    {
         // Store web service response to the dataset.
         // All values must be serialized to strings in the DICOM way,
         // i.e. '20141225' for date values, '175959' for time values.
@@ -1405,41 +1415,40 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
             if (DcmTag::findTagFromName(i.key().toUtf8(), tag).bad())
             {
                 qDebug() << "Unknown DCM tag" << i.key();
+                continue;
+            }
+
+            QVariant value;
+            auto str = i.value().toString();
+
+            // We shouldn't call translateToLatin for integers & dates.
+            //
+            if (tag.getEVR() == EVR_DA && str.length() == 8)
+            {
+                value.setValue(QDate::fromString(str, "yyyyMMdd"));
+            }
+            else if (tag.getEVR() == EVR_TM && str.length() == 6)
+            {
+                value.setValue(QTime::fromString(str, "HHmmss"));
+            }
+            else if (tag.getEVR() == EVR_DT && str.length() == 14)
+            {
+                value.setValue(QDateTime::fromString(str, "yyyyMMddHHmmss"));
+            }
+            else if (tag.getVR().isaString())
+            {
+                value.setValue(translateToLatin(str));
             }
             else
             {
-                QVariant value;
-                auto str = i.value().toString();
+                value = i.value();
+            }
 
-                // We shouldn't call translateToLatin for integers & dates.
-                //
-                if (tag.getEVR() == EVR_DA && str.length() == 8)
-                {
-                    value.setValue(QDate::fromString(str, "yyyyMMdd"));
-                }
-                else if (tag.getEVR() == EVR_TM && str.length() == 6)
-                {
-                    value.setValue(QTime::fromString(str, "HHmmss"));
-                }
-                else if (tag.getEVR() == EVR_DT && str.length() == 14)
-                {
-                    value.setValue(QDateTime::fromString(str, "yyyyMMddHHmmss"));
-                }
-                else if (tag.getVR().isaString())
-                {
-                    value.setValue(translateToLatin(str));
-                }
-                else
-                {
-                    value = i.value();
-                }
-
-                //qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << value;
-                auto cond = putAndInsertVariant(rqDataset, tag, value);
-                if (cond.bad())
-                {
-                    qDebug() << "Failed to set" << tag.getTagName() << "value" << QString::fromLocal8Bit(cond.text());
-                }
+            //qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << value;
+            auto cond = putAndInsertVariant(rqDataset, tag, value);
+            if (cond.bad())
+            {
+                qDebug() << "Failed to set" << tag.getTagName() << "value" << QString::fromLocal8Bit(cond.text());
             }
         }
     }
@@ -1459,6 +1468,8 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, Dicom
         settings.setArrayIndex(i);
         auto key = settings.value("key").toString();
 
+        // The 'rect' value will be ignored, when no 'pattern' set
+        //
         auto rect = settings.value("rect").toRect();
         if (!rect.isEmpty())
         {
