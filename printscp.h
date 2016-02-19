@@ -19,6 +19,7 @@
 
 #include <QObject>
 #include <QDate>
+#include <QRegExp>
 #include <QSettings>
 #include <tesseract/baseapi.h>
 
@@ -251,6 +252,13 @@ private:
     // Log upstream printer traffic (off by default)
     //
     bool debugUpstream;
+
+    // Regular expression to remove non printable symbols
+    // For example, [^a-z,A-Z, .] will remove everything
+    // except latin chars, the dot and the space.
+    // "W PE=RAE=RAE=s-HK<©" will be "W PERAERAEsHK"
+    //
+    QRegExp reBadSymbols;
 };
 
 bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset);

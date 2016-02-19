@@ -32,7 +32,6 @@
 #include <QJsonObject>
 #endif
 #include <QRect>
-#include <QRegExp>
 #include <QSettings>
 #include <QStringList>
 #include <QXmlStreamReader>
@@ -307,6 +306,7 @@ PrintSCP::PrintSCP(QObject *parent, const QString &printer)
     blockMode     = (T_DIMSE_BlockingMode)settings.value("block-mode", blockMode).toInt();
     timeout       = settings.value("timeout", timeout).toInt();
     debugUpstream = settings.value("debug-upstream", debugUpstream).toBool();
+    reBadSymbols.setPattern(settings.value("bad-symbols").toString());
 }
 
 PrintSCP::~PrintSCP()
@@ -437,6 +437,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         forceUniqueSeries    = settings.value("force-unique-series", forceUniqueSeries).toBool();
         forceUniqueStudy     = settings.value("force-unique-study", forceUniqueStudy).toBool();
         debugUpstream        = settings.value("debug-upstream", debugUpstream).toBool();
+        reBadSymbols.setPattern(settings.value("bad-symbols", reBadSymbols.pattern()).toString());
         settings.endGroup();
 
         if (printerAETitle.isEmpty())
@@ -1479,7 +1480,8 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, Dicom
             {
                 tess.SetRectangle(rect.left(), rect.top(), rect.width(), rect.height());
                 prevRect = rect;
-                ocrText = QString::fromUtf8(tess.GetUTF8Text());
+                ocrText = QString::fromUtf8(tess.GetUTF8Text())
+                    .remove(reBadSymbols).trimmed(); // remove non printable symbols and trailing whitespace.
             }
         }
 
