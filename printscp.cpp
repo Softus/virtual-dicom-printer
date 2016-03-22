@@ -1152,7 +1152,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
                 qDebug() << "Failed to store to" << server << QString::fromLocal8Bit(cond.text());
                 if (!spoolPath.isEmpty())
                 {
-                    saveToDisk(spoolPath.append(QDir::separator()).append(server), rqDataset);
+                    saveToDisk(QString(spoolPath).append(QDir::separator()).append(server), rqDataset);
                 }
             }
         }

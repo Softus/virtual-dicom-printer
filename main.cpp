@@ -131,7 +131,7 @@ static void resendFailedPrints(QSettings& settings)
                     // At this point, we will copy the dataset as many times,
                     // as need for each failed store server.
                     //
-                    saveToDisk(spoolPath.append(QDir::separator()).append(server), dcmFF.getDataset());
+                    saveToDisk(QString(spoolPath).append(QDir::separator()).append(server), dcmFF.getDataset());
                 }
             }
 
@@ -145,7 +145,7 @@ static void resendFailedPrints(QSettings& settings)
     foreach (auto server, settings.value("storage-servers").toStringList())
     {
         StoreSCP sscp(server);
-        Q_FOREACH (auto file, QDir(spoolPath.append(QDir::separator()).append(server)).entryInfoList(QDir::Files))
+        Q_FOREACH (auto file, QDir(QString(spoolPath).append(QDir::separator()).append(server)).entryInfoList(QDir::Files))
         {
             auto filePath = file.absoluteFilePath();
             qDebug() << "Resending " << filePath;
