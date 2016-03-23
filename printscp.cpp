@@ -751,11 +751,11 @@ void PrintSCP::handleClient()
     }
     else if (cond == DUL_PEERABORTEDASSOCIATION)
     {
-        qDebug() << "Association Aborted";
+        qDebug() << "Association Aborted" << (assoc->params? assoc->params->DULparams.callingPresentationAddress: "");
     }
     else
     {
-      qDebug() << "DIMSE Failure (aborting association)";
+      qDebug() << "DIMSE Failure (aborting association)" << (assoc->params? assoc->params->DULparams.callingPresentationAddress: "");
       cond = ASC_abortAssociation(assoc);
     }
 
@@ -1469,8 +1469,6 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, Dicom
         settings.setArrayIndex(i);
         auto key = settings.value("key").toString();
 
-        // The 'rect' value will be ignored, when no 'pattern' set
-        //
         auto rect = settings.value("rect").toRect();
         if (!rect.isEmpty())
         {
@@ -1489,7 +1487,11 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, Dicom
         auto pattern = settings.value("pattern").toString();
         if (!pattern.isEmpty())
         {
-            if (ocrText.isEmpty())
+            if (rect.isEmpty())
+            {
+                qDebug() << "pattern" << pattern << "ignored since `rect' isn't specified for" << key;
+            }
+            else if (ocrText.isEmpty())
             {
                 qDebug() << "No text on the image for idx" << i << "key" << key << "rect" << rect;
             }
