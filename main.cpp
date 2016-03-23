@@ -26,6 +26,7 @@
 #include <dcmtk/config/osconfig.h> /* make sure OS specific configuration is included first */
 #include <dcmtk/dcmdata/dcdeftag.h>
 #include <dcmtk/dcmdata/dcfilefo.h>
+#include <dcmtk/dcmpstat/dvpsdef.h>     /* for constants */
 
 #define DEFAULT_SPOOL_INTERVAL 600
 
@@ -117,7 +118,8 @@ static void resendFailedPrints(QSettings& settings)
             qDebug() << "Failed to retry " << filePath << ": no printer instance specified";
             continue;
         }
-        PrintSCP retryPrintSCP(nullptr, QString::fromUtf8(printer));
+
+        PrintSCP retryPrintSCP(nullptr, nullptr, QString::fromUtf8(printer));
 
         if (retryPrintSCP.webQuery(dcmFF.getDataset()))
         {
@@ -177,6 +179,16 @@ static void resendFailedPrints(QSettings& settings)
         }
     }
     qDebug() << __func__ << "done";
+}
+
+void handleClient(T_ASC_Association *assoc)
+{
+    PrintSCP printSCP(assoc);
+
+    if (printSCP.negotiateAssociation())
+    {
+        printSCP.handleClient();
+    }
 }
 
 int main(int argc, char *argv[])
@@ -243,10 +255,6 @@ int main(int argc, char *argv[])
 
     Q_FOREVER
     {
-        // Use new print SCP object for each association
-        //
-        PrintSCP printSCP;
-
         do
         {
            cleanChildren();
@@ -257,57 +265,40 @@ int main(int argc, char *argv[])
 
         qDebug() << "Client connected";
 
-        // Ready to accept an association
-        //
-        auto ass = printSCP.negotiateAssociation(net);
-        qDebug() << "Negotiate connection" << ass;
+        T_ASC_Association *assoc = nullptr;
+        cond = ASC_receiveAssociation(net, &assoc, DEFAULT_MAXPDU);
+        if (cond.bad())
+        {
+            qDebug() << "Failed to receive association";
+            ASC_dropSCPAssociation(assoc);
+            ASC_destroyAssociation(&assoc);
+            continue;
+        }
 
-        if (DVPSJ_error == ass)
-        {
-            // Association has already been deleted,
-            // we just wait for the next client to connect.
-        }
-        else if (DVPSJ_terminate == ass)
-        {
-            // Our mission is over
-            //
-            ASC_dropNetwork(&net);
-            break;
-        }
-        else if (DVPSJ_success == ass)
-        {
 #if defined(HAVE_FORK) && !defined(QT_DEBUG)
-            // A new client just been connected.
+        auto pid = fork();
+        if (pid < 0)
+        {
+            qDebug() << "fork() failed, err" << errno;
+            ASC_dropSCPAssociation(assoc);
+            ASC_destroyAssociation(&assoc);
+        }
+        else if (pid == 0)
+        {
+            // Do the real work.
             //
-            auto pid = fork();
-            if (pid < 0)
-            {
-                qDebug() << "fork() failed, err" << errno;
-                printSCP.dropAssociations();
-            }
-            else if (pid == 0)
-            {
-                // Do the real work.
-                //
-                printSCP.handleClient();
-                qDebug() << "Child process completed. pid" << getpid();
-                quick_exit(0);
-            }
-            else
-            {
-                qDebug() << "Child process" << pid << "spawned";
-            }
-#else
-            qDebug() << "Will handle client connection in the main process";
-            printSCP.handleClient();
-#endif
+            handleClient(assoc);
+            qDebug() << "Child process completed. pid" << getpid();
+            break;
         }
         else
         {
-            qDebug() << "Unknown status, terminating";
-            ASC_dropNetwork(&net);
-            break;
+            qDebug() << "Child process" << pid << "spawned";
         }
+#else
+        qDebug() << "Will handle client connection in the main process";
+        handleClient(assoc);
+#endif
     }
 
     return 0;

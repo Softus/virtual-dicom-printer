@@ -41,7 +41,7 @@ class PrintSCP : public QObject
     Q_OBJECT
 
 public:
-    PrintSCP(QObject *parent = 0, const QString& printer = QString());
+    PrintSCP(T_ASC_Association *assoc, QObject *parent = 0, const QString& printer = QString());
     ~PrintSCP();
 
     /** performs association negotiation for the Print SCP. Depending on the
@@ -50,11 +50,11 @@ public:
      *  If association negotiation is unsuccessful, an A-ASSOCIATE-RQ is sent
      *  and the association is dropped. If successful, an A-ASSOCIATE-AC is
      *  prepared but not (yet) sent.
-     *  @param net DIMSE network over which to receive the association request
-     *  @return result indicating whether association negotiation was successful,
-     *    unsuccessful or whether termination of the server was requested.
+     *  @param associatePDU
+     *  @param associatePDUlength
+     *  @return result indicating whether association negotiation was successful.
      */
-    DVPSAssociationNegotiationResult negotiateAssociation(T_ASC_Network *upstreamNet);
+    bool negotiateAssociation();
 
     /** confirms an association negotiated with negotiateAssociation() and sends
      *  all DIMSE communication to upstream printer or process by itself.

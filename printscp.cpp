@@ -281,7 +281,7 @@ static void copyItems(DcmItem* src, DcmItem *dst)
     }
 }
 
-PrintSCP::PrintSCP(QObject *parent, const QString &printer)
+PrintSCP::PrintSCP(T_ASC_Association *assoc, QObject *parent, const QString &printer)
     : QObject(parent)
     , blockMode(DIMSE_BLOCKING)
     , timeout(DEFAULT_TIMEOUT)
@@ -290,7 +290,7 @@ PrintSCP::PrintSCP(QObject *parent, const QString &printer)
     , sessionDataset(nullptr)
     , printer(printer)
     , upstreamNet(nullptr)
-    , assoc(nullptr)
+    , assoc(assoc)
     , upstream(nullptr)
     , debugUpstream(false)
 {
@@ -346,15 +346,11 @@ void PrintSCP::dumpOut(T_DIMSE_Message &msg, DcmItem *dataset)
     qDebug() << QString::fromLocal8Bit(str.c_str());
 }
 
-DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *net)
+bool PrintSCP::negotiateAssociation()
 {
     QSettings settings;
-    DVPSAssociationNegotiationResult result = DVPSJ_success;
     char buf[BUFSIZ];
-    OFBool dropAssoc = OFFalse;
-
-    void *associatePDU=nullptr;
-    unsigned long associatePDUlength=0;
+    bool dropAssoc = false;
 
     const char *abstractSyntaxes[] =
     {
@@ -375,51 +371,39 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         UID_LittleEndianImplicitTransferSyntax
     };
 
-    OFCondition cond = ASC_receiveAssociation(net, &assoc, DEFAULT_MAXPDU, &associatePDU, &associatePDUlength);
-    if (cond.bad())
+    printer = QString::fromUtf8(assoc->params->DULparams.calledAPTitle);
+
+    qDebug() << "\n\n\nClient association received (max send PDV: " << assoc->sendPDVLength << ")"
+         << assoc->params->DULparams.callingPresentationAddress << ":"
+         << assoc->params->DULparams.callingAPTitle << "=>"
+         << assoc->params->DULparams.calledPresentationAddress << ":"
+         << assoc->params->DULparams.calledAPTitle
+         << QDateTime::currentDateTime().toString(Qt::ISODate)
+         ;
+
+    ASC_setAPTitles(assoc->params, nullptr, nullptr, printer.toUtf8());
+
+    /* Application Context Name */
+    auto cond = ASC_getApplicationContextName(assoc->params, buf);
+    if (cond.bad() || strcmp(buf, DICOM_STDAPPLICATIONCONTEXT) != 0)
     {
-        qDebug() << "Failed to receive association";
-        dropAssoc = OFTrue;
-        result = DVPSJ_error;
+        /* reject: the application context name is not supported */
+        qDebug() << "Bad AppContextName: " << buf;
+        cond = refuseAssociation(ASC_RESULT_REJECTEDTRANSIENT, ASC_REASON_SU_APPCONTEXTNAMENOTSUPPORTED);
+        dropAssoc = true;
+    }
+    else if (!settings.childGroups().contains(printer))
+    {
+      cond = refuseAssociation(ASC_RESULT_REJECTEDTRANSIENT, ASC_REASON_SU_CALLEDAETITLENOTRECOGNIZED);
+      dropAssoc = true;
     }
     else
     {
-        printer = QString::fromUtf8(assoc->params->DULparams.calledAPTitle);
-
-        qDebug() << "\n\n\nClient association received (max send PDV: " << assoc->sendPDVLength << ")"
-             << assoc->params->DULparams.callingPresentationAddress << ":"
-             << assoc->params->DULparams.callingAPTitle << "=>"
-             << assoc->params->DULparams.calledPresentationAddress << ":"
-             << assoc->params->DULparams.calledAPTitle
-             << QDateTime::currentDateTime().toString(Qt::ISODate)
-             ;
-
-        ASC_setAPTitles(assoc->params, nullptr, nullptr, printer.toUtf8());
-
-        /* Application Context Name */
-        cond = ASC_getApplicationContextName(assoc->params, buf);
-        if (cond.bad() || strcmp(buf, DICOM_STDAPPLICATIONCONTEXT) != 0)
-        {
-            /* reject: the application context name is not supported */
-            qDebug() << "Bad AppContextName: " << buf;
-            cond = refuseAssociation(ASC_RESULT_REJECTEDTRANSIENT, ASC_REASON_SU_APPCONTEXTNAMENOTSUPPORTED);
-            dropAssoc = OFTrue;
-            result = DVPSJ_error;
-        }
-        else if (!settings.childGroups().contains(printer))
-        {
-          cond = refuseAssociation(ASC_RESULT_REJECTEDTRANSIENT, ASC_REASON_SU_CALLEDAETITLENOTRECOGNIZED);
-          dropAssoc = OFTrue;
-          result = DVPSJ_error;
-        }
-        else
-        {
-            /* accept presentation contexts */
-            cond = ASC_acceptContextsWithPreferredTransferSyntaxes(assoc->params,
-                abstractSyntaxes, sizeof(abstractSyntaxes)/sizeof(abstractSyntaxes[0]),
-                transferSyntaxes, sizeof(transferSyntaxes)/sizeof(transferSyntaxes[0]));
-        }
-    } /* receiveAssociation successful */
+        /* accept presentation contexts */
+        cond = ASC_acceptContextsWithPreferredTransferSyntaxes(assoc->params,
+            abstractSyntaxes, sizeof(abstractSyntaxes)/sizeof(abstractSyntaxes[0]),
+            transferSyntaxes, sizeof(transferSyntaxes)/sizeof(transferSyntaxes[0]));
+    }
 
     if (dropAssoc)
     {
@@ -508,8 +492,7 @@ DVPSAssociationNegotiationResult PrintSCP::negotiateAssociation(T_ASC_Network *n
         sessionDataset->putAndInsertString(DCM_PatientName, "^", false);
     }
 
-    delete[] (char *)associatePDU;
-    return result;
+    return !dropAssoc;
 }
 
 OFCondition PrintSCP::refuseAssociation(T_ASC_RejectParametersResult result, T_ASC_RejectParametersReason reason)
