@@ -31,6 +31,8 @@
 
 static void cleanChildren()
 {
+    qDebug() << __func__;
+
 #ifdef HAVE_WAITPID
     int status;
 #elif HAVE_WAIT3
@@ -83,6 +85,7 @@ static void resendFailedPrints(QSettings& settings)
     if (QDateTime::currentDateTime() < settings.value("next-spool-ts").toDateTime())
     {
         // Not yet. May be next time
+        qDebug() << __func__ << "delayed";
         return;
     }
 
@@ -93,6 +96,7 @@ static void resendFailedPrints(QSettings& settings)
 
     // Retry failed web queries
     //
+    qDebug() << __func__ << "retrying prints";
     Q_FOREACH (auto file, QDir(spoolPath).entryInfoList(QDir::Files))
     {
         auto filePath = file.absoluteFilePath();
@@ -142,6 +146,7 @@ static void resendFailedPrints(QSettings& settings)
         }
     }
 
+    qDebug() << __func__ << "retrying dcmstore";
     foreach (auto server, settings.value("storage-servers").toStringList())
     {
         StoreSCP sscp(server);
@@ -171,6 +176,7 @@ static void resendFailedPrints(QSettings& settings)
             }
         }
     }
+    qDebug() << __func__ << "done";
 }
 
 int main(int argc, char *argv[])
@@ -210,7 +216,7 @@ int main(int argc, char *argv[])
 
     if (cond.bad())
     {
-        qDebug() << "cannot initialise network" << QString::fromLocal8Bit(cond.text());
+        qDebug() << "cannot initialize network" << QString::fromLocal8Bit(cond.text());
         return 1;
     }
 
@@ -245,12 +251,16 @@ int main(int argc, char *argv[])
         {
            cleanChildren();
            resendFailedPrints(settings);
+           qDebug() << "waiting for connection";
         }
         while (!ASC_associationWaiting(net, listen_timeout));
+
+        qDebug() << "Client connected";
 
         // Ready to accept an association
         //
         auto ass = printSCP.negotiateAssociation(net);
+        qDebug() << "Negotiate connection" << ass;
 
         if (DVPSJ_error == ass)
         {
@@ -291,6 +301,12 @@ int main(int argc, char *argv[])
             qDebug() << "Will handle client connection in the main process";
             printSCP.handleClient();
 #endif
+        }
+        else
+        {
+            qDebug() << "Unknown status, terminating";
+            ASC_dropNetwork(&net);
+            break;
         }
     }
 
