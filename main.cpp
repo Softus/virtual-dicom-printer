@@ -30,6 +30,8 @@
 
 #define DEFAULT_SPOOL_INTERVAL 600
 
+static int resendWorkerPid = 0;
+
 static void cleanChildren()
 {
     qDebug() << __func__;
@@ -66,13 +68,17 @@ static void cleanChildren()
         else if (child > 0)
         {
             qDebug() << "Child process" << child << "terminated with status" << status;
+            if (resendWorkerPid == child)
+            {
+                resendWorkerPid = 0;
+            }
         }
 
     }
 #endif
 }
 
-static void resendFailedPrints(QSettings& settings)
+static bool resendFailedPrints(QSettings& settings)
 {
     // Retry failed prints
     //
@@ -80,19 +86,35 @@ static void resendFailedPrints(QSettings& settings)
     if (spoolPath.isEmpty())
     {
         // Retry spool is disabled
-        return;
+        return false;
     }
 
     if (QDateTime::currentDateTime() < settings.value("next-spool-ts").toDateTime())
     {
         // Not yet. May be next time
         qDebug() << __func__ << "delayed";
-        return;
+        return false;
     }
 
     auto spoolInterval = settings.value("spool-interval-in-seconds", DEFAULT_SPOOL_INTERVAL).toInt();
     settings.setValue("next-spool-ts", QDateTime::currentDateTime().addSecs(spoolInterval));
 
+    if (resendWorkerPid > 0)
+    {
+        qDebug() << "Worker process" << resendWorkerPid << "is still alive, resend delayed";
+        return false;
+    }
+
+    resendWorkerPid = fork();
+
+    if (resendWorkerPid > 0)
+    {
+        qDebug() << "Worker process to resend failed prints spawned. Pid" << resendWorkerPid;
+        return false;
+    }
+
+    // Really start to process failed prints
+    //
     OFCondition cond;
 
     // Retry failed web queries
@@ -179,6 +201,7 @@ static void resendFailedPrints(QSettings& settings)
         }
     }
     qDebug() << __func__ << "done";
+    return true;
 }
 
 void handleClient(T_ASC_Association *assoc)
@@ -258,7 +281,11 @@ int main(int argc, char *argv[])
         do
         {
            cleanChildren();
-           resendFailedPrints(settings);
+           if (resendFailedPrints(settings))
+           {
+               // Resend worker routine has been completed
+               return 0;
+           }
            qDebug() << "waiting for connection";
         }
         while (!ASC_associationWaiting(net, listen_timeout));
@@ -279,9 +306,8 @@ int main(int argc, char *argv[])
         auto pid = fork();
         if (pid < 0)
         {
-            qDebug() << "fork() failed, err" << errno;
-            ASC_dropSCPAssociation(assoc);
-            ASC_destroyAssociation(&assoc);
+            qDebug() << "fork() failed, err" << errno << "\nWill handle client connection in the main process";
+            handleClient(assoc);
         }
         else if (pid == 0)
         {
@@ -289,7 +315,7 @@ int main(int argc, char *argv[])
             //
             handleClient(assoc);
             qDebug() << "Child process completed. pid" << getpid();
-            break;
+            return 0;
         }
         else
         {

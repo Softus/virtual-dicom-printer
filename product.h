@@ -23,8 +23,8 @@
 #define PRODUCT_FULL_NAME       "Virtual DICOM Printer"
 #define PRODUCT_SHORT_NAME      "virtualdicomprinter" // lowercase, no spaces
 
-#define PRODUCT_VERSION         0x010102
-#define PRODUCT_VERSION_STR     "1.1.2"
+#define PRODUCT_VERSION         0x010200
+#define PRODUCT_VERSION_STR     "1.2"
 
 #define PRODUCT_SITE_URL        "http://" ORGANIZATION_DOMAIN "/projects/" PRODUCT_SHORT_NAME "/"
 #define PRODUCT_NAMESPACE       "ru.baikal.dc." PRODUCT_SHORT_NAME
