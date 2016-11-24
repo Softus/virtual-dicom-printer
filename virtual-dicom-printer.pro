@@ -12,6 +12,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+isEmpty(PREFIX): PREFIX   = /usr
+DEFINES += PREFIX=$$PREFIX
+
 QT          += core network
 QT          -= gui
 LIBS        += -ldcmpstat -ldcmnet -ldcmdata -ldcmimgle -loflog -lofstd -lz
@@ -44,3 +47,8 @@ HEADERS += \
     product.h \
     storescp.h \
     transcyrillic.h
+
+target.path = $$PREFIX/bin
+man.files = $$TARGET.1
+man.path = $$PREFIX/share/man/man1
+INSTALLS += target man
