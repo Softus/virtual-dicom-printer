@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Irkutsk Diagnostic Center.
+ * Copyright (C) 2014-2016 Softus Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +17,8 @@
 #ifndef PRODUCT_H
 #define PRODUCT_H
 
-#define ORGANIZATION_FULL_NAME  "Irkutsk Diagnostic Center"
-#define ORGANIZATION_DOMAIN     "dc.baikal.ru"
+#define ORGANIZATION_FULL_NAME  "Softus Inc."
+#define ORGANIZATION_DOMAIN     "softus.org"
 
 #define PRODUCT_FULL_NAME       "Virtual DICOM Printer"
 #define PRODUCT_SHORT_NAME      "virtualdicomprinter" // lowercase, no spaces
@@ -27,7 +27,7 @@
 #define PRODUCT_VERSION_STR     "1.2"
 
 #define PRODUCT_SITE_URL        "http://" ORGANIZATION_DOMAIN "/projects/" PRODUCT_SHORT_NAME "/"
-#define PRODUCT_NAMESPACE       "ru.baikal.dc." PRODUCT_SHORT_NAME
+#define PRODUCT_NAMESPACE       "org.softus." PRODUCT_SHORT_NAME
 
 #define SITE_UID_ROOT           "1.2.643.2.66"
 

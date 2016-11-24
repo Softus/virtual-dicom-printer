@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Irkutsk Diagnostic Center.
+ * Copyright (C) 2014-2016 Softus Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,9 @@
 #include <QDate>
 #include <QRegExp>
 #include <QSettings>
+#ifdef WITH_TESSERACT
 #include <tesseract/baseapi.h>
+#endif
 
 #define DEFAULT_LISTEN_PORT  10005
 #define DEFAULT_TIMEOUT      30
@@ -245,9 +247,11 @@ private:
     //
     T_ASC_Association *upstream;
 
+#ifdef WITH_TESSERACT
     // OCR
     //
     tesseract::TessBaseAPI tess;
+#endif
 
     // Log upstream printer traffic (off by default)
     //

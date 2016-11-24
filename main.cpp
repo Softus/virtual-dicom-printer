@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Irkutsk Diagnostic Center.
+ * Copyright (C) 2014-2016 Softus Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -22,11 +22,24 @@
 #include <QDebug>
 #include <QDir>
 
+#ifdef UNICODE
+#define DCMTK_UNICODE_BUG_WORKAROUND
+#undef UNICODE
+#endif
+
 #define HAVE_CONFIG_H
 #include <dcmtk/config/osconfig.h> /* make sure OS specific configuration is included first */
+#include <dcmtk/oflog/logger.h>
 #include <dcmtk/dcmdata/dcdeftag.h>
 #include <dcmtk/dcmdata/dcfilefo.h>
 #include <dcmtk/dcmpstat/dvpsdef.h>     /* for constants */
+namespace dcmtk{}
+using namespace dcmtk;
+
+#ifdef DCMTK_UNICODE_BUG_WORKAROUND
+#define UNICODE
+#undef DCMTK_UNICODE_BUG_WORKAROUND
+#endif
 
 #define DEFAULT_SPOOL_INTERVAL 600
 
@@ -126,7 +139,7 @@ static bool resendFailedPrints(QSettings& settings)
         qDebug() << "Retrying " << filePath;
 
         DcmFileFormat dcmFF;
-        cond = dcmFF.loadFile(filePath.toLocal8Bit());
+        cond = dcmFF.loadFile((const char*)filePath.toLocal8Bit());
         if (cond.bad())
         {
             qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());
@@ -180,7 +193,7 @@ static bool resendFailedPrints(QSettings& settings)
             qDebug() << "Resending " << filePath;
 
             DcmFileFormat dcmFF;
-            cond = dcmFF.loadFile(filePath.toLocal8Bit());
+            cond = dcmFF.loadFile((const char*)filePath.toLocal8Bit());
             if (cond.bad())
             {
                 qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Irkutsk Diagnostic Center.
+ * Copyright (C) 2014-2016 Softus Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -69,7 +69,7 @@ bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
     }
 
     DcmFileFormat ff(rqDataset);
-    OFCondition cond = ff.saveFile(fileName.toUtf8(),
+    OFCondition cond = ff.saveFile((const char*)fileName.toUtf8(),
         EXS_LittleEndianExplicit,  EET_ExplicitLength, EGL_recalcGL, EPD_withoutPadding);
 
     if (cond.bad())
@@ -297,11 +297,13 @@ PrintSCP::PrintSCP(T_ASC_Association *assoc, QObject *parent, const QString &pri
     QSettings settings;
     auto ocrLang = settings.value("ocr-lang", DEFAULT_OCR_LANG).toString();
 
+#ifdef WITH_TESSERACT
     // Set locale to "C" to avoid tesseract crash. Then revert to the system default
     //
     auto oldLocale = setlocale(LC_NUMERIC, "C");
     tess.Init(nullptr, ocrLang.toUtf8(), tesseract::OEM_TESSERACT_ONLY);
     setlocale(LC_NUMERIC, oldLocale);
+#endif
 
     blockMode     = (T_DIMSE_BlockingMode)settings.value("block-mode", blockMode).toInt();
     timeout       = settings.value("timeout", timeout).toInt();
@@ -1188,6 +1190,7 @@ static QVariantMap readXmlResponse(const QByteArray& data)
     return map;
 }
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 static QVariantMap readJsonResponse(const QByteArray& data)
 {
     QVariantMap map;
@@ -1202,6 +1205,7 @@ static QVariantMap readJsonResponse(const QByteArray& data)
 
     return map;
 }
+#endif
 
 bool PrintSCP::webQuery(DcmDataset *rqDataset)
 {
@@ -1254,8 +1258,9 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
 
     if (di.createJavaAWTBitmap(img, 0, 32) && img)
     {
+#ifdef WITH_TESSERACT
         tess.SetImage((const unsigned char*)img, di.getWidth(), di.getHeight(), 4, 4 * di.getWidth());
-
+#endif
         // Global tags
         //
         insertTags(rqDataset, queryParams, &di, settings);
@@ -1459,10 +1464,14 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, Dicom
             if (rect.top() < 0) rect.moveTop(di->getHeight() + rect.top());
             if (prevRect != rect)
             {
-                tess.SetRectangle(rect.left(), rect.top(), rect.width(), rect.height());
                 prevRect = rect;
+#ifdef WITH_TESSERACT
+                tess.SetRectangle(rect.left(), rect.top(), rect.width(), rect.height());
                 ocrText = QString::fromUtf8(tess.GetUTF8Text())
                     .remove(reBadSymbols).trimmed(); // remove non printable symbols and trailing whitespace.
+#else
+                ocrText = "(built with no OCR support)";
+#endif
             }
         }
 
