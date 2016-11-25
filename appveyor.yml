@@ -1,0 +1,36 @@
+version: 1.0.{build}
+pull_requests:
+  do_not_increment_build_number: true
+skip_non_tags: true
+image: Visual Studio 2013
+
+environment:
+  QT_DIR: C:\Qt\5.7\mingw53_32
+  MINGW_DIR: C:\Qt\Tools\mingw530_32
+
+# Fix line endings on Windows
+init:
+- git config --global core.autocrlf true
+
+install:
+- mkdir c:\usr
+- mkdir c:\usr\bin && mkdir c:\usr\include && mkdir c:\usr\lib
+- set PATH=%MINGW_DIR%\bin;%QT_DIR%\bin;c:\usr\bin;c:\msys64\mingw32\bin;%PATH%
+
+# DCMTK
+- git clone git://git.dcmtk.org/dcmtk.git -b DCMTK-3.6.1_20150924 && cd dcmtk
+- mkdir build && cd build
+- set PATH=%PATH:C:\Program Files\Git\usr\bin=%
+- cmake -Wno-dev .. -DCMAKE_INSTALL_PREFIX=c:\usr -G "MinGW Makefiles"
+- cmake --build . --target install
+- set PATH=%PATH%;C:\Program Files\Git\usr\bin
+- cd ..\..
+
+
+build_script:
+- qmake
+- mingw32-make
+
+artifacts:
+- path: Release\*.exe
+  name: windows-executable

@@ -1,0 +1,6 @@
+language: c++
+sudo: required
+dist: trusty
+script:
+   - dpkg-buildpackage -us -uc -I.git -I*.sh -rfakeroot
+
