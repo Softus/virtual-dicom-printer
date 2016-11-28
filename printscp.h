@@ -30,10 +30,20 @@
 #define DEFAULT_OCR_LANG     "eng"
 #define DEFAULT_CONTENT_TYPE "application/xml"
 
+#ifdef UNICODE
+#define DCMTK_UNICODE_BUG_WORKAROUND
+#undef UNICODE
+#endif
+
 #define HAVE_CONFIG_H
 #include <dcmtk/config/osconfig.h>   // make sure OS specific configuration is included first
 #include <dcmtk/dcmpstat/dvpstyp.h>  // for enum types
 #include <dcmtk/dcmnet/dimse.h>
+
+#ifdef DCMTK_UNICODE_BUG_WORKAROUND
+#define UNICODE
+#undef DCMTK_UNICODE_BUG_WORKAROUND
+#endif
 
 class DicomImage;
 struct T_ASC_Association;

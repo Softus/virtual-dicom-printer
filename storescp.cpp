@@ -14,13 +14,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "storescp.h"
-
 #include <QCoreApplication>
 #include <QDebug>
 #include <QSettings>
 
+
+#ifdef UNICODE
+#define DCMTK_UNICODE_BUG_WORKAROUND
+#undef UNICODE
+#endif
+
+#include "storescp.h"
 #include <dcmtk/dcmdata/dcdeftag.h>
+
+#ifdef DCMTK_UNICODE_BUG_WORKAROUND
+#define UNICODE
+#undef DCMTK_UNICODE_BUG_WORKAROUND
+#endif
 
 StoreSCP::StoreSCP(const QString& server, QObject *parent)
     : QObject(parent)

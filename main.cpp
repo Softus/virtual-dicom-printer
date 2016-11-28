@@ -15,8 +15,6 @@
  */
 
 #include "product.h"
-#include "printscp.h"
-#include "storescp.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -27,12 +25,15 @@
 #undef UNICODE
 #endif
 
-#define HAVE_CONFIG_H
-#include <dcmtk/config/osconfig.h> /* make sure OS specific configuration is included first */
+#include "printscp.h"
+#include "storescp.h"
+
 #include <dcmtk/oflog/logger.h>
 #include <dcmtk/dcmdata/dcdeftag.h>
 #include <dcmtk/dcmdata/dcfilefo.h>
-#include <dcmtk/dcmpstat/dvpsdef.h>     /* for constants */
+#include <dcmtk/dcmpstat/dvpsdef.h>
+
+// DCMTK prior to 3.6.1 has no its own namespace.
 namespace dcmtk{}
 using namespace dcmtk;
 
@@ -54,7 +55,7 @@ static void cleanChildren()
 #elif HAVE_WAIT3
     struct rusage rusage;
 #if defined(__NeXT__)
-    /* some systems need a union wait as argument to wait3 */
+    // some systems need a union wait as argument to wait3
     union wait status;
 #else
     int        status;
@@ -112,6 +113,7 @@ static bool resendFailedPrints(QSettings& settings)
     auto spoolInterval = settings.value("spool-interval-in-seconds", DEFAULT_SPOOL_INTERVAL).toInt();
     settings.setValue("next-spool-ts", QDateTime::currentDateTime().addSecs(spoolInterval));
 
+#ifdef HAVE_FORK
     if (resendWorkerPid > 0)
     {
         qDebug() << "Worker process" << resendWorkerPid << "is still alive, resend delayed";
@@ -125,6 +127,7 @@ static bool resendFailedPrints(QSettings& settings)
         qDebug() << "Worker process to resend failed prints spawned. Pid" << resendWorkerPid;
         return false;
     }
+#endif
 
     // Really start to process failed prints
     //
@@ -178,7 +181,8 @@ static bool resendFailedPrints(QSettings& settings)
 
             if (!QFile::remove(filePath))
             {
-                qDebug() << "Failed to remove file " << filePath << ": " << QString::fromLocal8Bit(strerror(errno));
+                qDebug() << "Failed to remove file " << filePath
+                         << ": " << QString::fromLocal8Bit(strerror(errno));
             }
         }
     }
@@ -187,7 +191,8 @@ static bool resendFailedPrints(QSettings& settings)
     foreach (auto server, settings.value("storage-servers").toStringList())
     {
         StoreSCP sscp(server);
-        Q_FOREACH (auto file, QDir(QString(spoolPath).append(QDir::separator()).append(server)).entryInfoList(QDir::Files))
+        auto path = QDir(QString(spoolPath).append(QDir::separator()).append(server));
+        Q_FOREACH (auto file, path.entryInfoList(QDir::Files))
         {
             auto filePath = file.absoluteFilePath();
             qDebug() << "Resending " << filePath;
@@ -196,7 +201,8 @@ static bool resendFailedPrints(QSettings& settings)
             cond = dcmFF.loadFile((const char*)filePath.toLocal8Bit());
             if (cond.bad())
             {
-                qDebug() << "Failed to load " << filePath << ": " << QString::fromLocal8Bit(cond.text());
+                qDebug() << "Failed to load " << filePath
+                         << ": " << QString::fromLocal8Bit(cond.text());
                 continue;
             }
 
@@ -208,7 +214,8 @@ static bool resendFailedPrints(QSettings& settings)
             {
                 if (!QFile::remove(filePath))
                 {
-                    qDebug() << "Failed to remove file " << filePath << ": " << QString::fromLocal8Bit(strerror(errno));
+                    qDebug() << "Failed to remove file " << filePath
+                             << ": " << QString::fromLocal8Bit(strerror(errno));
                 }
             }
         }
@@ -269,11 +276,11 @@ int main(int argc, char *argv[])
     }
 
 #if defined(HAVE_SETUID) && defined(HAVE_GETUID)
-    /* return to normal uid so that we can't do too much damage in case
-     * things go very wrong.   Only relevant if the program is setuid root,
-     * and run by another user.  Running as root user may be
-     * potentially disasterous if this program screws up badly.
-     */
+    // Return to normal uid so that we can't do too much damage in case
+    // things go very wrong.   Only relevant if the program is setuid root,
+    // and run by another user.  Running as root user may be
+    // potentially disasterous if this program screws up badly.
+    //
     auto err = setuid(getuid());
     if (err)
     {
@@ -287,7 +294,8 @@ int main(int argc, char *argv[])
     int listen_timeout=10000;
 #endif
 
-    qDebug() << "Virtual DICOM printer version" << PRODUCT_VERSION_STR << "started. Master process pid" << getpid();
+    qDebug() << "Virtual DICOM printer version" << PRODUCT_VERSION_STR
+             << "started. Master process pid" << getpid();
 
     Q_FOREVER
     {
@@ -319,7 +327,8 @@ int main(int argc, char *argv[])
         auto pid = fork();
         if (pid < 0)
         {
-            qDebug() << "fork() failed, err" << errno << "\nWill handle client connection in the main process";
+            qDebug() << "fork() failed, err" << errno
+                     << "\nWill handle client connection in the main process";
             handleClient(assoc);
         }
         else if (pid == 0)

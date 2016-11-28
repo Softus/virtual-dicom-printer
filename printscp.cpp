@@ -17,7 +17,6 @@
 #include "product.h"
 #include "printscp.h"
 #include "storescp.h"
-
 #include "transcyrillic.h"
 
 #include <QCoreApplication>
@@ -38,12 +37,22 @@
 
 #include <locale.h> // Required for tesseract
 
+#ifdef UNICODE
+#define DCMTK_UNICODE_BUG_WORKAROUND
+#undef UNICODE
+#endif
+
 #include <dcmtk/dcmdata/dcdeftag.h>
 #include <dcmtk/dcmdata/dcfilefo.h>
 #include <dcmtk/dcmdata/dcsequen.h>
 #include <dcmtk/dcmdata/dcvrui.h>
 #include <dcmtk/dcmpstat/dvpsdef.h>     /* for constants */
 #include <dcmtk/dcmimgle/dcmimage.h>    /* for DicomImage */
+
+#ifdef DCMTK_UNICODE_BUG_WORKAROUND
+#define UNICODE
+#undef DCMTK_UNICODE_BUG_WORKAROUND
+#endif
 
 bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
 {
@@ -1304,7 +1313,12 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
     else if (contendType.endsWith("json", Qt::CaseInsensitive))
     {
-        data = QJsonDocument(QJsonObject::fromVariantMap(queryParams)).toJson(QJsonDocument::Compact);
+        data = QJsonDocument(QJsonObject::fromVariantMap(queryParams))
+            .toJson(
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 1, 0))
+               QJsonDocument::Compact
+#endif
+            );
     }
 #endif
     else
