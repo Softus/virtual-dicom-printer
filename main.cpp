@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2016 Softus Inc.
+ * Copyright (C) 2014-2017 Softus Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
 
     if (cond.bad())
     {
-        qDebug() << "cannot initialize network" << QString::fromLocal8Bit(cond.text());
+        qWarning() << "cannot initialize network" << QString::fromLocal8Bit(cond.text());
         return 1;
     }
 
@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
     auto err = setuid(getuid());
     if (err)
     {
-        qDebug() << "setuid failed" << errno << "this may be dangerous";
+        qWarning() << "setuid failed" << errno << "this may be dangerous";
     }
 #endif
 
@@ -294,7 +294,7 @@ int main(int argc, char *argv[])
     int listen_timeout=10000;
 #endif
 
-    qDebug() << "Virtual DICOM printer version" << PRODUCT_VERSION_STR
+    qCritical() << "Virtual DICOM printer version" << PRODUCT_VERSION_STR
              << "started. Master process pid" << getpid();
 
     Q_FOREVER
@@ -317,7 +317,7 @@ int main(int argc, char *argv[])
         cond = ASC_receiveAssociation(net, &assoc, DEFAULT_MAXPDU);
         if (cond.bad())
         {
-            qDebug() << "Failed to receive association";
+            qWarning() << "Failed to receive association";
             ASC_dropSCPAssociation(assoc);
             ASC_destroyAssociation(&assoc);
             continue;

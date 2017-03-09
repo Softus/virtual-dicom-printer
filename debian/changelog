@@ -1,4 +1,11 @@
-virtual-dicom-printer (1.2.0-1zesty1) zesty; urgency=medium
+virtual-dicom-printer (1.2.1-1xenial1) xenial; urgency=medium
+
+  * RHEL builds.
+  * Sample config file /etc/xdg/softus.org/virtual-dicom-printer.conf
+
+ -- Pavel Bludov <pbludov@gmail.com>  Thu, 9 Mar 2017 10:51:21 +0800
+
+virtual-dicom-printer (1.2.0-1xenial1) xenial; urgency=medium
 
   * Copyright update.
 

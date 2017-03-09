@@ -26,7 +26,7 @@ Debian/Ubuntu/Mint
 1. Install build dependecies
 
         sudo apt install libdcmtk2-dev libleptonica-dev libqt5network5 \
-        libwrap0-dev libssl-dev libtesseract-dev qt5-default
+            libwrap0-dev libssl-dev libtesseract-dev qt5-default
 
 2. Make
 
@@ -39,7 +39,28 @@ Debian/Ubuntu/Mint
 
 4. Create Package
 
-        dpkg-buildpackage -us -uc -I.git -I*.sh -rfakeroot
+        dpkg-buildpackage -us -uc -I.git -rfakeroot
+
+Fedora/SUSE/CentOS
+------------------
+
+1. Install build dependecies
+
+        yum install make gcc-c++ qt5-qtbase-devel dcmtk-devel \
+            openssl-devel tesseract-devel tcp_wrappers-devel libxml2-devel
+
+2. Make
+
+        qmake-qt5 virtual-dicom-printer.pro
+        make
+
+3. Install
+
+        sudo make install
+
+4. Create Package
+
+        tar czf /tmp/virtual-dicom-printer.tar.gz * --exclude=.git && rpmbuild -ta /tmp/virtual-dicom-printer.tar.gz
 
 Windows (Visual Studio)
 -----------------------
@@ -49,7 +70,7 @@ Windows (Visual Studio)
   * [CMake](https://cmake.org/download/)
   * [pkg-config](http://ftp.gnome.org/pub/gnome/binaries/win32/dependencies/)
   * [Qt 5.5 MSVC](https://download.qt.io/archive/qt/5.5/)
-  * [DCMTK (optional)](http://dcmtk.org/dcmtk.php.en)
+  * [DCMTK](http://dcmtk.org/dcmtk.php.en)
 
 2. Build 3-rd party libraries
 

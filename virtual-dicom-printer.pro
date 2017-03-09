@@ -1,4 +1,4 @@
-# Copyright (C) 2013-2016 Softus Inc.
+# Copyright (C) 2013-2017 Softus Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -17,7 +17,7 @@ DEFINES += PREFIX=$$PREFIX
 
 QT          += core network
 QT          -= gui
-LIBS        += -ldcmpstat -ldcmnet -ldcmdata -ldcmimgle -loflog -lofstd -lz
+LIBS        += -ldcmpstat -ldcmnet -ldcmdata -ldcmimgle -ldcmdsig -ldcmsr -ldcmtls -ldcmqrdb -lxml2 -loflog -lofstd -lz
 unix:LIBS   += -lwrap -lssl
 win32:LIBS  += -lws2_32 -ladvapi32 -lnetapi32
 
@@ -48,7 +48,14 @@ HEADERS += \
     storescp.h \
     transcyrillic.h
 
-target.path = $$PREFIX/bin
-man.files = $$TARGET.1
-man.path = $$PREFIX/share/man/man1
-INSTALLS += target man
+target.path=$$PREFIX/bin
+man.files=virtual-dicom-printer.1
+man.path=$$PREFIX/share/man/man1
+cfg.files=virtual-dicom-printer.conf
+cfg.path=/etc/xdg/softus.org
+initd.files=init.d/virtual-dicom-printer
+initd.path=/etc/rc.d/init.d
+systemd.files=systemd/virtual-dicom-printer.service
+systemd.path=/lib/systemd/system
+
+INSTALLS += target man cfg initd systemd
