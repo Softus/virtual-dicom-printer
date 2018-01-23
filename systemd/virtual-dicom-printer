@@ -4,12 +4,15 @@ After=network.target
 
 [Service]
 Type=simple
-#User=vprinter
-#Group=vprinter
-#WorkingDirectory=/home/vprinter
-ExecStart=/usr/bin/virtual-dicom-printer 2>&1 /var/log/virtual-dicom-printer.log
+EnvironmentFile=/etc/sysconfig/virtual-dicom-printer
+User=$VIRTUAL_DICOM_PRINTER_USER
+Group=$VIRTUAL_DICOM_PRINTER_GROUP
+WorkingDirectory=$VIRTUAL_DICOM_PRINTER_WD
+ExecStart=/usr/bin/virtual-dicom-printer
 Restart=always
 RestartSec=5
+StandardError=file:${VIRTUAL_DICOM_PRINTER_LOG:-/var/log/virtual-dicom-printer.log}
+StandardOutput=file:${VIRTUAL_DICOM_PRINTER_LOG:-/var/log/virtual-dicom-printer.log}
 
 # Give a reasonable amount of time for the server to start up/shut down
 TimeoutSec=300

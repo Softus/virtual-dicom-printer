@@ -55,7 +55,9 @@ cfg.files=virtual-dicom-printer.conf
 cfg.path=/etc/xdg/softus.org
 initd.files=init.d/virtual-dicom-printer
 initd.path=/etc/rc.d/init.d
+sysconfig.files=sysconfig/virtual-dicom-printer
+sysconfig.path=/etc/sysconfig
 systemd.files=systemd/virtual-dicom-printer.service
 systemd.path=/lib/systemd/system
 
-INSTALLS += target man cfg initd systemd
+INSTALLS += target man cfg initd sysconfig systemd

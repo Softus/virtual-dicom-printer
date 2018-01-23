@@ -14,6 +14,12 @@ prog=virtual-dicom-printer
 
 virtual_dicom_printer_starter="/usr/bin/virtual-dicom-printer"
 
+[ -f /etc/sysconfig/virtual-dicom-printer ] && . /etc/sysconfig/virtual-dicom-printer
+
+if [ -z "$VIRTUAL_DICOM_PRINTER_LOG" ]; then
+    VIRTUAL_DICOM_PRINTER_LOG=/var/log/virtual-dicom-printer.log
+fi
+
 if [ -z "$VIRTUAL_DICOM_PRINTER_PIDFILE" ]; then
   VIRTUAL_DICOM_PRINTER_PIDFILE="/var/run/virtual-dicom-printer.pid"
 fi
@@ -25,23 +31,22 @@ fi
 start() {
   echo -n "Starting $prog: "
 
-  if [ -f "$VIRTUAL_DICOM_PRINTER_PIDFILE" ]; then
-    read ppid < "$VIRTUAL_DICOM_PRINTER_PIDFILE"
+  if [ -f $VIRTUAL_DICOM_PRINTER_PIDFILE ]; then
+    read ppid < $VIRTUAL_DICOM_PRINTER_PIDFILE
     if [ `ps --pid $ppid 2> /dev/null | grep -c $ppid 2> /dev/null` -eq '1' ]; then
       log_success_msg "already running (pid $ppid)"
       return 0
     else
-      rm -f "$VIRTUAL_DICOM_PRINTER_PIDFILE"
+      rm -f $VIRTUAL_DICOM_PRINTER_PIDFILE
     fi
   fi
 
-  if [ ! -z "$VIRTUAL_DICOM_PRINTER_USER" ]; then
-    chown "$VIRTUAL_DICOM_PRINTER_USER" `dirname "$VIRTUAL_DICOM_PRINTER_PIDFILE"`
-    su - "$VIRTUAL_DICOM_PRINTER_USER" -c "\"$virtual_dicom_printer_starter\"" 2>&1 >> /var/log/virtual-dicom-printer.log&
+  if [ -n "$VIRTUAL_DICOM_PRINTER_USER" ]; then
+    su - $VIRTUAL_DICOM_PRINTER_USER -c "$VIRTUAL_DICOM_PRINTER_OPTS $virtual_dicom_printer_starter > $VIRTUAL_DICOM_PRINTER_LOG 2>&1" &
     ret=$?
     VIRTUAL_DICOM_PRINTER_PID=$!
   else
-    "$virtual_dicom_printer_starter" 2>&1 >> /var/log/virtual-dicom-printer.log&
+    $virtual_dicom_printer_starter $VIRTUAL_DICOM_PRINTER_OPTS > $VIRTUAL_DICOM_PRINTER_LOG 2>&1 &
     ret=$?
     VIRTUAL_DICOM_PRINTER_PID=$!
   fi
@@ -51,7 +56,7 @@ start() {
     return 1
   fi
 
-  echo $VIRTUAL_DICOM_PRINTER_PID > "$VIRTUAL_DICOM_PRINTER_PIDFILE"
+  echo $VIRTUAL_DICOM_PRINTER_PID > $VIRTUAL_DICOM_PRINTER_PIDFILE
 
   log_success_msg "started (pid $VIRTUAL_DICOM_PRINTER_PID)"
   return 0
@@ -62,8 +67,8 @@ stop() {
 
   count=0
 
-  if [ -f "$VIRTUAL_DICOM_PRINTER_PIDFILE" ]; then
-    read ppid < "$VIRTUAL_DICOM_PRINTER_PIDFILE"
+  if [ -f $VIRTUAL_DICOM_PRINTER_PIDFILE ]; then
+    read ppid < $VIRTUAL_DICOM_PRINTER_PIDFILE
     kwait=$VIRTUAL_DICOM_PRINTER_SHUTDOWN_WAIT
 
     kill -15 $ppid
@@ -82,7 +87,7 @@ stop() {
     return 7
   fi
 
-  rm -f "$VIRTUAL_DICOM_PRINTER_PIDFILE"
+  rm -f $VIRTUAL_DICOM_PRINTER_PIDFILE
 
   log_success_msg "stopped"
   return 0
