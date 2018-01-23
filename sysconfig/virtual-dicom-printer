@@ -2,3 +2,4 @@
 #VIRTUAL_DICOM_PRINTER_USER=virtprint
 #VIRTUAL_DICOM_PRINTER_GROUP=virtprint
 #VIRTUAL_DICOM_PRINTER_LOG=/home/virtprint/log/printer.log
+#VIRTUAL_DICOM_PRINTER_WD=/home/vprinter

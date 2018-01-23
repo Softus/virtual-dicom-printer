@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2017 Softus Inc.
+ * Copyright (C) 2014-2018 Softus Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -23,8 +23,8 @@
 #define PRODUCT_FULL_NAME       "Virtual DICOM Printer"
 #define PRODUCT_SHORT_NAME      "virtual-dicom-printer" // lowercase, no spaces
 
-#define PRODUCT_VERSION         0x010200
-#define PRODUCT_VERSION_STR     "1.2"
+#define PRODUCT_VERSION         0x010300
+#define PRODUCT_VERSION_STR     "1.3"
 
 #define PRODUCT_SITE_URL        "http://" ORGANIZATION_DOMAIN "/projects/" PRODUCT_SHORT_NAME "/"
 #define PRODUCT_NAMESPACE       "org.softus." PRODUCT_SHORT_NAME
