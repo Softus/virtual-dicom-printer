@@ -1,7 +1,7 @@
 Summary: Virtual printer for DICOM.
 Name: virtual-dicom-printer
 Provides: virtual-dicom-printer
-Version: 1.2
+Version: 1.3
 Release: 1%{?dist}
 License: LGPL-2.1+
 Source: %{name}.tar.gz
@@ -42,6 +42,7 @@ make install INSTALL_ROOT="%buildroot";
 %files
 %defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/xdg/softus.org/%{name}.conf
+%config(noreplace) %{_sysconfdir}/sysconfig/%{name}.conf
 %{_initddir}/virtual-dicom-printer
 %{_mandir}/man1/%{name}.1.gz
 %{_bindir}/%{name}
