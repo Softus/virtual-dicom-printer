@@ -268,7 +268,7 @@ private:
     bool debugUpstream;
 
     // Regular expression to remove non printable symbols
-    // For example, [^a-z,A-Z, .] will remove everything
+    // For example, [^a-zA-Z .] will remove everything
     // except latin chars, the dot and the space.
     // "W PE=RAE=RAE=s-HK<©" will be "W PERAERAEsHK"
     //
