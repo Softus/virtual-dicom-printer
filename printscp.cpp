@@ -31,7 +31,7 @@
 #include <QJsonObject>
 #endif
 #include <QRect>
-#include <QSettings>
+#include <QUtf8Settings>
 #include <QStringList>
 #include <QXmlStreamReader>
 
@@ -303,7 +303,7 @@ PrintSCP::PrintSCP(T_ASC_Association *assoc, QObject *parent, const QString &pri
     , upstream(nullptr)
     , debugUpstream(false)
 {
-    QSettings settings;
+    QUtf8Settings settings;
     auto ocrLang = settings.value("ocr-lang", DEFAULT_OCR_LANG).toString();
 
 #ifdef WITH_TESSERACT
@@ -359,7 +359,7 @@ void PrintSCP::dumpOut(T_DIMSE_Message &msg, DcmItem *dataset)
 
 bool PrintSCP::negotiateAssociation()
 {
-    QSettings settings;
+    QUtf8Settings settings;
     char buf[BUFSIZ];
     bool dropAssoc = false;
 
@@ -943,7 +943,7 @@ void PrintSCP::printerNGet(T_DIMSE_Message& rq, T_DIMSE_Message& rsp, DcmDataset
         }
         else
         {
-            QSettings settings;
+            QUtf8Settings settings;
             settings.beginGroup(printer);
             QMap<DcmTag, QVariant> info;
             auto size = settings.beginReadArray("info");
@@ -1119,7 +1119,7 @@ void PrintSCP::storeImage(DcmDataset *rqDataset)
     rqDataset->putAndInsertString(DCM_Manufacturer, ORGANIZATION_FULL_NAME);
     rqDataset->putAndInsertString(DCM_ManufacturerModelName, PRODUCT_FULL_NAME);
 
-    QSettings settings;
+    QUtf8Settings settings;
     auto spoolPath = settings.value("spool-path").toString();
 
     if (!webQuery(rqDataset))
@@ -1218,7 +1218,7 @@ static QVariantMap readJsonResponse(const QByteArray& data)
 
 bool PrintSCP::webQuery(DcmDataset *rqDataset)
 {
-    QSettings settings;
+    QUtf8Settings settings;
     QVariantMap queryParams;
     QVariantMap ret;
 

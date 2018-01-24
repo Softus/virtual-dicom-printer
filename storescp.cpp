@@ -16,8 +16,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
-#include <QSettings>
-
+#include "QUtf8Settings"
 
 #ifdef UNICODE
 #define DCMTK_UNICODE_BUG_WORKAROUND
@@ -40,7 +39,7 @@ StoreSCP::StoreSCP(const QString& server, QObject *parent)
     , net(nullptr)
     , assoc(nullptr)
 {
-    QSettings settings;
+    QUtf8Settings settings;
     blockMode = (T_DIMSE_BlockingMode)settings.value("block-mode", blockMode).toInt();
     timeout   = settings.value("timeout", timeout).toInt();
 }
@@ -64,7 +63,7 @@ void StoreSCP::dropAssociation()
 T_ASC_Parameters* StoreSCP::initAssocParams(const QString& peerAet, const QString& peerAddress, int timeout,
                                             const char* abstractSyntax, const char* transferSyntax)
 {
-    QSettings settings;
+    QUtf8Settings settings;
 
     DIC_NODENAME localHost;
     T_ASC_Parameters* params = nullptr;
@@ -162,7 +161,7 @@ OFCondition StoreSCP::sendToServer(DcmDataset* rqDataset, const char *sopInstanc
     OFString sopClass;
     rqDataset->findAndGetOFString(DCM_SOPClassUID, sopClass);
 
-    QSettings settings;
+    QUtf8Settings settings;
     settings.beginGroup(server);
     auto timeout = settings.value("timeout").toInt();
     T_ASC_Parameters* params = initAssocParams(settings.value("aetitle").toString(),

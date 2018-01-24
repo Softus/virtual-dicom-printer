@@ -42,7 +42,7 @@ make install INSTALL_ROOT="%buildroot";
 %files
 %defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/xdg/softus.org/%{name}.conf
-%config(noreplace) %{_sysconfdir}/sysconfig/%{name}.conf
+%config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 %{_initddir}/virtual-dicom-printer
 %{_mandir}/man1/%{name}.1.gz
 %{_bindir}/%{name}

@@ -1,3 +1,9 @@
+virtual-dicom-printer (1.3.0-2xenial1) xenial; urgency=medium
+
+  * Enforce UTF-8 in settings file.
+
+ -- Pavel Bludov <pbludov@gmail.com>  Tue, 23 Jan 2018 14:42:41 +0800
+
 virtual-dicom-printer (1.3.0-1xenial1) xenial; urgency=medium
 
   * /etc/sysconfig/virtual-dicom-printer file.

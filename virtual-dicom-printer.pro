@@ -46,7 +46,9 @@ HEADERS += \
     printscp.h \
     product.h \
     storescp.h \
-    transcyrillic.h
+    transcyrillic.h \
+    qutf8settings.h \
+    QUtf8Settings
 
 target.path=$$PREFIX/bin
 man.files=virtual-dicom-printer.1

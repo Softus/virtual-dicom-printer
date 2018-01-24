@@ -19,6 +19,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
+#include <QUtf8Settings>
 
 #ifdef UNICODE
 #define DCMTK_UNICODE_BUG_WORKAROUND
@@ -112,6 +113,10 @@ static bool resendFailedPrints(QSettings& settings)
 
     auto spoolInterval = settings.value("spool-interval-in-seconds", DEFAULT_SPOOL_INTERVAL).toInt();
     settings.setValue("next-spool-ts", QDateTime::currentDateTime().addSecs(spoolInterval));
+
+    // Save it immediatelly to avoid corruption.
+    //
+    settings.sync();
 
 #ifdef HAVE_FORK
     if (resendWorkerPid > 0)
@@ -240,7 +245,7 @@ int main(int argc, char *argv[])
     app.setApplicationName(PRODUCT_SHORT_NAME);
     app.setOrganizationName(ORGANIZATION_DOMAIN);
 
-    QSettings settings;
+    QUtf8Settings settings;
     auto logLevel = settings.value("log-level").toString();
     if (!logLevel.isEmpty())
     {
