@@ -736,7 +736,7 @@ void PrintSCP::handleClient()
 
     qDebug() << "Print session is done";
 
-    // close client association
+    // Close client association
     //
     if (cond == DUL_PEERREQUESTEDRELEASE)
     {
@@ -1229,13 +1229,13 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     auto contendType  = settings.value("content-type", DEFAULT_CONTENT_TYPE).toString();
 
     QStringList extraParams;
-    if (contendType.endsWith("xml", Qt::CaseInsensitive))
+    if (contendType.contains("/xml", Qt::CaseInsensitive))
     {
         extraParams.append("study-instance-uid:StudyInstanceUID");
         extraParams.append("medical-service-date:InstanceCreationDate");
     }
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
-    else if (contendType.endsWith("json", Qt::CaseInsensitive))
+    else if (contendType.contains("/json", Qt::CaseInsensitive))
     {
         extraParams.append("studyInstanceUID:StudyInstanceUID");
         extraParams.append("medicalServiceDate:InstanceCreationDate");
@@ -1306,12 +1306,12 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     QNetworkAccessManager mgr;
 
     QByteArray data;
-    if (contendType.endsWith("xml", Qt::CaseInsensitive))
+    if (contendType.contains("/xml", Qt::CaseInsensitive))
     {
         data = writeXmlRequest("save-hardcopy-grayscale-image-request", queryParams);
     }
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
-    else if (contendType.endsWith("json", Qt::CaseInsensitive))
+    else if (contendType.contains("/json", Qt::CaseInsensitive))
     {
         data = QJsonDocument(QJsonObject::fromVariantMap(queryParams))
             .toJson(
@@ -1331,6 +1331,14 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
     if (!userName.isEmpty())
     {
         rq.setRawHeader("Authorization", "Basic " + QByteArray(userName.append(':').append(password).toUtf8()).toBase64());
+    }
+
+    // Enforce the UTF-8 charset if no charsets are specified.
+    // Note that all requests in the JSON format must use UTF-8 charset.
+    //
+    if (!contendType.contains("charset=", Qt::CaseInsensitive))
+    {
+        contendType.append("; charset=").append(DEFAULT_CHARSET);
     }
 
     rq.setHeader(QNetworkRequest::ContentTypeHeader, contendType);
@@ -1366,12 +1374,12 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
         ++error;
     }
 
-    if (responseContentType.endsWith("xml"))
+    if (responseContentType.contains("/xml"))
     {
         ret = readXmlResponse(response);
     }
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
-    else if (responseContentType.endsWith("json"))
+    else if (responseContentType.contains("/json"))
     {
         ret = readJsonResponse(response);
     }
@@ -1411,7 +1419,7 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
         // Store web service response to the dataset.
         // All values must be serialized to strings in the DICOM way,
         // i.e. '20141225' for date values, '175959' for time values.
-
+        //
         for (auto i = ret.constBegin(); i != ret.constEnd(); ++i)
         {
             DcmTag tag;
@@ -1447,7 +1455,6 @@ bool PrintSCP::webQuery(DcmDataset *rqDataset)
                 value = i.value();
             }
 
-            //qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << value;
             auto cond = putAndInsertVariant(rqDataset, tag, value);
             if (cond.bad())
             {
@@ -1537,7 +1544,6 @@ void PrintSCP::insertTags(DcmDataset *rqDataset, QVariantMap &queryParams, Dicom
             }
             else
             {
-                //qDebug() << tag.getXTag().toString().c_str() << tag.getTagName() << str << param;
                 rqDataset->putAndInsertString(tag, str.toUtf8());
             }
         }

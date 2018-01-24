@@ -29,6 +29,7 @@
 #define DEFAULT_TIMEOUT      30
 #define DEFAULT_OCR_LANG     "eng"
 #define DEFAULT_CONTENT_TYPE "application/xml"
+#define DEFAULT_CHARSET      "UTF-8"
 
 #ifdef UNICODE
 #define DCMTK_UNICODE_BUG_WORKAROUND
