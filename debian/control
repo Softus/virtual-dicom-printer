@@ -3,8 +3,8 @@ Section: contrib/misc
 Priority: optional
 Maintainer: Softus team <contact@softus.org>
 Standards-Version: 3.2.1
-Build-Depends: debhelper, qt5-default, libdcmtk2-dev, libssl-dev, libwrap0-dev,
-  libqt5network5,  libtesseract-dev,  libleptonica-dev, libxml2-dev
+Build-Depends: debhelper, qt5-default, libdcmtk2-dev, libxml2-dev,
+  libqt5network5,  libtesseract-dev,  libleptonica-dev
 
 Package: virtual-dicom-printer
 Architecture: i386 amd64

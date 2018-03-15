@@ -1,0 +1,11 @@
+#!/bin/sh
+
+case "$1" in
+  install)
+
+    useradd -rmb /var/lib -s /sbin/nologin virtprint || :
+  ;;
+
+esac
+
+#DEBHELPER#

@@ -54,6 +54,10 @@
 #undef DCMTK_UNICODE_BUG_WORKAROUND
 #endif
 
+#ifndef DCM_RETIRED_DestinationAE
+#define DCM_RETIRED_DestinationAE                DcmTagKey(0x2100, 0x0140)
+#endif
+
 bool saveToDisk(const QString& spoolPath, DcmDataset* rqDataset)
 {
     if (!QDir::root().mkpath(spoolPath))

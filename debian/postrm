@@ -1,0 +1,15 @@
+#!/bin/sh
+
+case "$1" in
+  purge)
+
+    # Remove all files
+    rm -rf /var/lib/virtprint
+    rm -f /var/log/virtual-dicom-printer.log
+
+    userdel virtprint || :
+  ;;
+
+esac
+
+#DEBHELPER#

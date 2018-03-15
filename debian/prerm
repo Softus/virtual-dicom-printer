@@ -1,0 +1,11 @@
+#!/bin/sh
+
+case "$1" in
+  remove)
+
+    service virtual-dicom-printer stop || :
+  ;;
+
+esac
+
+#DEBHELPER#

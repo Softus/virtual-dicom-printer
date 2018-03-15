@@ -1,0 +1,91 @@
+- pipeline: "Buddy"
+  trigger_mode: "ON_EVERY_PUSH"
+  ref_name: "master"
+  actions:
+  - action: "CentOS"
+    type: "BUILD"
+    docker_image_name: "library/centos"
+    docker_image_tag: "latest"
+    cached_dirs:
+    - "/cache-centos"
+    execute_commands:
+    - if [ ! -d cache-centos ]; then mkdir cache-centos; fi
+    - cd cache-centos
+    - ../.ci/git-install.sh https://github.com/DCMTK/dcmtk.git DCMTK-3.6.3 "-DCMAKE_INSTALL_PREFIX=/usr -DDCMTK_WITH_OPENSSL=OFF -DDCMTK_WITH_WRAP=OFF -DDCMTK_WITH_ICU=OFF -DDCMTK_WITH_ICONV=OFF"
+    - cd ..
+    - export RPM_BUILD_NCPUS=2
+    - tar czf ../${project.name}.tar.gz --exclude=cache* --exclude=debian --exclude=*.yml * && rpmbuild -ta ../${project.name}.tar.gz
+    setup_commands:
+    - yum install -y epel-release
+    - yum update -y
+    - yum install -y redhat-lsb rpm-build git make cmake gcc-c++ qt5-qtbase-devel tesseract-devel openssl-devel libxml2-devel
+    trigger_condition: "ALWAYS"
+    working_directory: "/buddy/centos"
+
+  - action: "Debian"
+    type: "BUILD"
+    docker_image_name: "library/debian"
+    docker_image_tag: "latest"
+    execute_commands:
+    - dpkg-buildpackage -us -uc -tc -I*.yml -Icache* -rfakeroot
+    setup_commands:
+    - apt update -q
+    - apt upgrade -y
+    - apt install -y lsb-release debhelper fakeroot libdcmtk2-dev qt5-default libleptonica-dev libtesseract-dev
+    trigger_condition: "ALWAYS"
+    working_directory: "/buddy/debian"
+
+  - action: "Fedora"
+    type: "BUILD"
+    docker_image_name: "library/fedora"
+    docker_image_tag: "latest"
+    execute_commands:
+    - export RPM_BUILD_NCPUS=2
+    - tar czf ../${project.name}.tar.gz --exclude=cache* --exclude=debian --exclude=*.yml * && rpmbuild -ta ../${project.name}.tar.gz
+    setup_commands:
+    - dnf install -y redhat-lsb rpm-build make gcc-c++ qt5-qtbase-devel dcmtk-devel tesseract-devel openssl-devel libxml2-devel
+    trigger_condition: "ALWAYS"
+    working_directory: "/buddy/fedora"
+
+  - action: "openSUSE"
+    type: "BUILD"
+    docker_image_name: "library/opensuse"
+    docker_image_tag: "latest"
+    execute_commands:
+    - export RPM_BUILD_NCPUS=2
+    - tar czf ../${project.name}.tar.gz --exclude=cache* --exclude=debian --exclude=*.yml * && rpmbuild -ta ../${project.name}.tar.gz
+    setup_commands:
+    - zypper install -y lsb-release rpm-build make libqt5-qtbase-devel dcmtk-devel tesseract-ocr-devel openssl-devel libxml2-devel
+    trigger_condition: "ALWAYS"
+    working_directory: "/buddy/opensuse"
+
+  - action: "Mageia"
+    type: "BUILD"
+    docker_image_name: "library/mageia"
+    docker_image_tag: "latest"
+    cached_dirs:
+    - "/cache-mageia"
+    execute_commands:
+    - if [ ! -d cache-mageia ]; then mkdir cache-mageia; fi
+    - cd cache-mageia
+    - ../.ci/git-install.sh https://github.com/DCMTK/dcmtk.git DCMTK-3.6.3 "-DCMAKE_INSTALL_PREFIX=/usr -DDCMTK_WITH_OPENSSL=OFF -DDCMTK_WITH_WRAP=OFF -DDCMTK_WITH_ICU=OFF -DDCMTK_WITH_ICONV=OFF"
+    - cd ..
+    - export RPM_BUILD_NCPUS=2
+    - tar czf ../${project.name}.tar.gz --exclude=cache* --exclude=debian --exclude=*.yml * && rpmbuild -ta ../${project.name}.tar.gz
+    setup_commands:
+    - dnf install -y lsb-release rpm-build git make cmake gcc-c++ qttools5 lib64qt5base5-devel lib64tesseract-devel
+    trigger_condition: "ALWAYS"
+    working_directory: "/buddy/mageia"
+
+  - action: "Ubuntu"
+    type: "BUILD"
+    docker_image_name: "library/ubuntu"
+    docker_image_tag: "latest"
+    execute_commands:
+    - dpkg-buildpackage -us -uc -tc -I*.yml -Icache* -rfakeroot
+    setup_commands:
+    - apt update -q
+    - apt upgrade -y
+    - apt install -y lsb-release debhelper fakeroot libdcmtk2-dev qt5-default libleptonica-dev libtesseract-dev
+    trigger_condition: "ALWAYS"
+    working_directory: "/buddy/ubuntu"

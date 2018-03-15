@@ -2,7 +2,7 @@ language: c++
 sudo: required
 dist: trusty
 before_install:
-  - sudo apt-get install -y debhelper qt5-default libdcmtk2-dev libwrap0-dev libqt5network5 libtesseract-dev libleptonica-dev fakeroot
+  - sudo apt-get install -y debhelper qt5-default libdcmtk2-dev libqt5network5 libtesseract-dev libleptonica-dev fakeroot
 script:
   - dpkg-buildpackage -us -uc -I.git -I*.sh -rfakeroot
 

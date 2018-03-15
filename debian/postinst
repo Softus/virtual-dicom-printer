@@ -1,0 +1,12 @@
+#!/bin/sh
+
+case "$1" in
+  configure)
+
+    service rsyslog restart || :
+    service virtual-dicom-printer start || :
+  ;;
+
+esac
+
+#DEBHELPER#

@@ -223,7 +223,7 @@ QString translateToCyrillic(const QString& str)
         case 'x':
             ret.append(L'к').append(L'с');
             break;
-        case 'с':
+        case 'c':
             ret.append(next(str, i) == 'h'? ++i, L'ч': L'к'); // Английская 'c' без 'h' не должна встречаться.
             break;
         case 'y':
